@@ -411,13 +411,13 @@ void __handle_command_configurar(dpp::cluster& core, const dpp::interaction_crea
             break;
         case lang_command::CONFIG_LEVELS_MESSAGES:
         {
-            const auto block = get_bool_in_command(suboptions, lang->get(lang_command::CONFIG_LEVELS_MESSAGES_BLOCK));
+            const auto enable = get_bool_in_command(suboptions, lang->get(lang_command::CONFIG_LEVELS_MESSAGES_BLOCK));
 
-            if (!block) { src.edit_response(replaceargformatdirect(lang->get(lang_line::COMMAND_GENERIC_INVALID_ARGS_WITH_NAME), {lang->get(lang_command::CONFIG_LEVELS_MESSAGES_BLOCK)})); return; }
+            if (!enable) { src.edit_response(replaceargformatdirect(lang->get(lang_line::COMMAND_GENERIC_INVALID_ARGS_WITH_NAME), {lang->get(lang_command::CONFIG_LEVELS_MESSAGES_BLOCK)})); return; }
 
-            gconf->set_message_level_blocked(*block);
+            gconf->set_message_level_blocked(!*enable);
 
-            src.edit_response(lang->get(*block ? lang_line::COMMAND_CONFIG_LEVELS_BLOCKING_TRUE : lang_line::COMMAND_CONFIG_LEVELS_BLOCKING_FALSE));
+            src.edit_response(lang->get(!*enable ? lang_line::COMMAND_CONFIG_LEVELS_BLOCKING_TRUE : lang_line::COMMAND_CONFIG_LEVELS_BLOCKING_FALSE));
         }
             break;
         default:

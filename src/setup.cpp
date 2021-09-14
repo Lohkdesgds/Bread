@@ -70,7 +70,7 @@ void _hook_ev_interaction(dpp::cluster& core, ConfigSetting& conf, const dpp::in
             // any
             __handle_command_statistics_any(core, ev, cmd);
 
-            static const std::initializer_list<lang_command> commands_expected = { lang_command::POINTS, lang_command::COPY, lang_command::PASTE, lang_command::STATS, lang_command::POLL, lang_command::ROLES, lang_command::CONFIG, lang_command::SELFCONF, lang_command::PING, lang_command::BOTSTATUS };
+            static const std::initializer_list<lang_command> commands_expected = { lang_command::TIME, lang_command::RGB2DECIMAL, lang_command::POINTS, lang_command::COPY, lang_command::PASTE, lang_command::STATS, lang_command::POLL, lang_command::ROLES, lang_command::CONFIG, lang_command::SELFCONF, lang_command::PING, lang_command::BOTSTATUS };
 
             switch(lang->command_from(cmd.name, commands_expected)){
             case lang_command::POINTS:
@@ -100,8 +100,14 @@ void _hook_ev_interaction(dpp::cluster& core, ConfigSetting& conf, const dpp::in
             case lang_command::PING:
                 __handle_command_ping(core, ev, cmd, lang);
                 break;
+            case lang_command::TIME:
+                __handle_command_thetime(core, ev, cmd, lang);
+                break;
             case lang_command::BOTSTATUS:
                 __handle_command_botstatus(core, ev, cmd, lang);
+                break;
+            case lang_command::RGB2DECIMAL:
+                __handle_command_rgb(core, ev, cmd, lang);
                 break;
             default:
                 replying.set_content("Ainda não sou capaz disso. Desculpe.");

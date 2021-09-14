@@ -15,13 +15,17 @@
 #include "custom_tasker.hpp"
 //#include "tags.hpp"
 
-const unsigned commands_version_val = 1;
+const unsigned commands_version_val = 3;
 
-const size_t commands_amount = 10;
+const size_t commands_amount = 12;
 const int max_err = 5;
 
 struct _dummy_commands{
-    std::pair<std::string, dpp::slashcommand> cmds[commands_amount];
+    struct commands_rules {
+        dpp::slashcommand cmd;
+        bool enabled = true;
+    };
+    std::pair<std::string, commands_rules> cmds[commands_amount];
 };
 
 std::string language_based_on_location(const dpp::guild&);

@@ -278,7 +278,9 @@ std::unordered_map<std::string, lang_command> __conversion_lang_command_gen()
     std::unordered_map<std::string, lang_command> wrk;
 
     wrk["PING"]                                     = lang_command::PING;
+    wrk["TIME"]                                     = lang_command::TIME;
     wrk["BOTSTATUS"]                                = lang_command::BOTSTATUS;
+    wrk["RGB2DECIMAL"]                              = lang_command::RGB2DECIMAL;
     wrk["POINTS"]                                   = lang_command::POINTS;
     wrk["COPY"]                                     = lang_command::COPY;
     wrk["PASTE"]                                    = lang_command::PASTE;
@@ -288,7 +290,15 @@ std::unordered_map<std::string, lang_command> __conversion_lang_command_gen()
     wrk["CONFIG"]                                   = lang_command::CONFIG;
     wrk["SELFCONF"]                                 = lang_command::SELFCONF;
     wrk["PING_DESC"]                                = lang_command::PING_DESC;
+    wrk["TIME_DESC"]                                = lang_command::TIME_DESC;
     wrk["BOTSTATUS_DESC"]                           = lang_command::BOTSTATUS_DESC;
+    wrk["RGB2DECIMAL_DESC"]                         = lang_command::RGB2DECIMAL_DESC;
+    wrk["RGB2DECIMAL_RED"]                          = lang_command::RGB2DECIMAL_RED;
+    wrk["RGB2DECIMAL_RED_DESC"]                     = lang_command::RGB2DECIMAL_RED_DESC;
+    wrk["RGB2DECIMAL_GREEN"]                        = lang_command::RGB2DECIMAL_GREEN;
+    wrk["RGB2DECIMAL_GREEN_DESC"]                   = lang_command::RGB2DECIMAL_GREEN_DESC;
+    wrk["RGB2DECIMAL_BLUE"]                         = lang_command::RGB2DECIMAL_BLUE;
+    wrk["RGB2DECIMAL_BLUE_DESC"]                    = lang_command::RGB2DECIMAL_BLUE_DESC;
     wrk["POINTS_DESC"]                              = lang_command::POINTS_DESC;
     wrk["POINTS_USER"]                              = lang_command::POINTS_USER;
     wrk["POINTS_USER_DESC"]                         = lang_command::POINTS_USER_DESC;
@@ -495,6 +505,8 @@ std::unordered_map<std::string, lang_line> __conversion_lang_line_gen()
     wrk["COMMAND_STATS_FINAL_FILES_HERE"]                       = lang_line::COMMAND_STATS_FINAL_FILES_HERE;
     wrk["COMMAND_STATS_FINAL_FILES_PERC"]                       = lang_line::COMMAND_STATS_FINAL_FILES_PERC;
     wrk["COMMAND_STATS_FINAL_TOTAL_COMMANDS"]                   = lang_line::COMMAND_STATS_FINAL_TOTAL_COMMANDS;
+    // rgbcolor.cpp
+    wrk["COMMAND_RGB2DECIMAL_RESULT"]                           = lang_line::COMMAND_RGB2DECIMAL_RESULT;
 
     return wrk;
 }

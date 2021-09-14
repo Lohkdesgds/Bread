@@ -92,12 +92,16 @@ enum class lang_line{ // 0 TO _MAX
     COMMAND_STATS_FINAL_FILES_HERE,
     COMMAND_STATS_FINAL_FILES_PERC,
     COMMAND_STATS_FINAL_TOTAL_COMMANDS,
-
+    // rgbcolor.cpp
+    COMMAND_RGB2DECIMAL_RESULT,
+    
     _MAX
 };
 enum class lang_command{ // 0 TO _MAX
     PING, // used
+    TIME,
     BOTSTATUS, // used
+    RGB2DECIMAL, // used
     POINTS, // used
     COPY, // used
     PASTE, // used
@@ -107,7 +111,15 @@ enum class lang_command{ // 0 TO _MAX
     CONFIG, // used
     SELFCONF, // used
     PING_DESC, // used
-    BOTSTATUS_DESC,// used
+    TIME_DESC,
+    BOTSTATUS_DESC, // used
+    RGB2DECIMAL_DESC, // used
+        RGB2DECIMAL_RED, // used
+        RGB2DECIMAL_RED_DESC, // used
+        RGB2DECIMAL_GREEN, // used
+        RGB2DECIMAL_GREEN_DESC, // used
+        RGB2DECIMAL_BLUE, // used
+        RGB2DECIMAL_BLUE_DESC, // used
     POINTS_DESC, // used
     POINTS_USER, // used
     POINTS_USER_DESC, // used

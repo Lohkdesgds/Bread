@@ -112,6 +112,7 @@ public:
 mull get_time_ms();
 std::string fix_name_for_cmd(std::string);
 std::string get_thread_id_str();
+int32_t rgb_to_decimal_color(int, int, int);
 
 //size_t cast_to_switch(const std::string&, const std::initializer_list<std::string>);
 //size_t cast_to_switch(const nullable_ref<std::string>&, const std::initializer_list<std::string>);

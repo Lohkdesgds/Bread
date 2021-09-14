@@ -16,6 +16,7 @@
 #include "apply_command_guild.hpp"
 
 #include "commands/points.hpp"
+#include "commands/tiem.hpp"
 #include "commands/statistics.hpp"
 #include "commands/copy_paste.hpp"
 #include "commands/poll.hpp"
@@ -24,6 +25,7 @@
 #include "commands/eu.hpp"
 #include "commands/ping.hpp"
 #include "commands/botstatus.hpp"
+#include "commands/rgbcolor.hpp"
 
 /// DEFAULTS
 constexpr int default_app_intents = dpp::i_guilds | dpp::i_guild_messages | dpp::i_guild_members | dpp::i_guild_bans | dpp::i_guild_message_reactions;

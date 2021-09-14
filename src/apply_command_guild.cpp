@@ -19,16 +19,19 @@ void __apply_commands_at_guild(dpp::cluster& core, const mull guild, dpp::guild*
     {
         std::string __report;
         auto commands_array = std::make_shared<_dummy_commands>();
-        dpp::slashcommand& ping = commands_array->cmds[0].second; commands_array->cmds[0].first = "ping";
-        dpp::slashcommand& ptts = commands_array->cmds[1].second; commands_array->cmds[1].first = "points";
-        dpp::slashcommand& stat = commands_array->cmds[2].second; commands_array->cmds[2].first = "stats";
-        dpp::slashcommand& post = commands_array->cmds[3].second; commands_array->cmds[3].first = "paste";
-        dpp::slashcommand& self = commands_array->cmds[4].second; commands_array->cmds[4].first = "self";
-        dpp::slashcommand& tags = commands_array->cmds[5].second; commands_array->cmds[5].first = "tags";
-        dpp::slashcommand& copy = commands_array->cmds[6].second; commands_array->cmds[6].first = "copy";
-        dpp::slashcommand& poll = commands_array->cmds[7].second; commands_array->cmds[7].first = "poll";
-        dpp::slashcommand& bsts = commands_array->cmds[8].second; commands_array->cmds[8].first = "botstats";
-        dpp::slashcommand& mngr = commands_array->cmds[9].second; commands_array->cmds[9].first = "manager"; // last one please! (so a new reapply can be done only after full reload!)
+        dpp::slashcommand& ping = commands_array->cmds[ 0].second.cmd; commands_array->cmds[ 0].first = "ping";
+        dpp::slashcommand& ptts = commands_array->cmds[ 1].second.cmd; commands_array->cmds[ 1].first = "points";
+        dpp::slashcommand& stat = commands_array->cmds[ 2].second.cmd; commands_array->cmds[ 2].first = "stats";
+        dpp::slashcommand& post = commands_array->cmds[ 3].second.cmd; commands_array->cmds[ 3].first = "paste";
+        dpp::slashcommand& self = commands_array->cmds[ 4].second.cmd; commands_array->cmds[ 4].first = "self";
+        dpp::slashcommand& tags = commands_array->cmds[ 5].second.cmd; commands_array->cmds[ 5].first = "tags";
+        dpp::slashcommand& copy = commands_array->cmds[ 6].second.cmd; commands_array->cmds[ 6].first = "copy";
+        dpp::slashcommand& poll = commands_array->cmds[ 7].second.cmd; commands_array->cmds[ 7].first = "poll";
+        dpp::slashcommand& bsts = commands_array->cmds[ 8].second.cmd; commands_array->cmds[ 8].first = "botstats";
+        dpp::slashcommand& tiem = commands_array->cmds[ 9].second.cmd; commands_array->cmds[ 9].first = "time";
+        dpp::slashcommand& drgb = commands_array->cmds[10].second.cmd; commands_array->cmds[10].first = "rgb2decimal";
+        dpp::slashcommand& mngr = commands_array->cmds[11].second.cmd; commands_array->cmds[11].first = "manager"; // last one please! (so a new reapply can be done only after full reload!)
+        bool& tags_enable = commands_array->cmds[5].second.enabled;
         // IF ADD NEW COMMANDS, UPDATE COMMANDS_AMOUNT!
 
         const auto lang = get_lang(gconf->get_language());
@@ -95,8 +98,6 @@ void __apply_commands_at_guild(dpp::cluster& core, const mull guild, dpp::guild*
             }
         }
 
-        bool enable_tags = false; // only if set
-
         {
             self.set_name(lang->get(lang_command::SELFCONF));
             self.set_description(lang->get(lang_command::SELFCONF_DESC));
@@ -118,6 +119,10 @@ void __apply_commands_at_guild(dpp::cluster& core, const mull guild, dpp::guild*
             ping.set_description(lang->get(lang_command::PING_DESC));
             ping.set_application_id(core.me.id);
 
+            tiem.set_name(lang->get(lang_command::TIME)); // done
+            tiem.set_description(lang->get(lang_command::TIME_DESC));
+            tiem.set_application_id(core.me.id);
+
             bsts.set_name(lang->get(lang_command::BOTSTATUS)); // done
             bsts.set_description(lang->get(lang_command::BOTSTATUS_DESC));
             bsts.set_application_id(core.me.id);
@@ -131,10 +136,13 @@ void __apply_commands_at_guild(dpp::cluster& core, const mull guild, dpp::guild*
             post.set_description(lang->get(lang_command::PASTE_DESC));
             post.set_application_id(core.me.id);
 
+            drgb.set_name(lang->get(lang_command::RGB2DECIMAL));
+            drgb.set_description(lang->get(lang_command::RGB2DECIMAL_DESC));
+            drgb.set_application_id(core.me.id);
+
             tags.set_name(lang->get(lang_command::ROLES));
             tags.set_description(lang->get(lang_command::ROLES_DESC));
             tags.set_application_id(core.me.id);
-            tags.set_type(dpp::slashcommand_contextmenu_type::ctxm_chat_input);
 
             mngr.set_name(lang->get(lang_command::CONFIG));
             mngr.set_description(lang->get(lang_command::CONFIG_DESC));
@@ -324,6 +332,16 @@ void __apply_commands_at_guild(dpp::cluster& core, const mull guild, dpp::guild*
                 self.add_option(self_levl);
                 self.add_option(self_colr);
             }
+            // RGB
+            {
+                opt drgb_redd = opt(opt_t::co_integer,  lang->get(lang_command::RGB2DECIMAL_RED),   lang->get(lang_command::RGB2DECIMAL_RED_DESC), true);
+                opt drgb_gree = opt(opt_t::co_integer,  lang->get(lang_command::RGB2DECIMAL_GREEN), lang->get(lang_command::RGB2DECIMAL_GREEN_DESC), true);
+                opt drgb_blue = opt(opt_t::co_integer,  lang->get(lang_command::RGB2DECIMAL_BLUE),  lang->get(lang_command::RGB2DECIMAL_BLUE_DESC), true);
+
+                drgb.add_option(drgb_redd);
+                drgb.add_option(drgb_gree);
+                drgb.add_option(drgb_blue);
+            }
             // POLL
             {
                 opt poll_text = opt(opt_t::co_string,   lang->get(lang_command::POLL_TEXT),  lang->get(lang_command::POLL_TEXT_DESC), true);
@@ -363,7 +381,7 @@ void __apply_commands_at_guild(dpp::cluster& core, const mull guild, dpp::guild*
             }
             // TAGS
             {
-                if (gconf->get_roles_map().empty()) { // no roles, no command.
+                /*if (gconf->get_roles_map().empty()) { // no roles, no command.
                     core.guild_commands_get(guild, [&core, guild, gconf, lang](const dpp::confirmation_callback_t& data){
                         if (data.is_error()) {
                             gconf->post_log("Failed to get commands -> ERR#" + std::to_string(data.http_info.status) + " BODY: " + data.http_info.body);
@@ -387,9 +405,8 @@ void __apply_commands_at_guild(dpp::cluster& core, const mull guild, dpp::guild*
                             }
                         }
                     });
-                }
-                else { // has roles to set up
-                    bool has_one = false;
+                }*/
+                if (gconf->get_roles_map().size() > 0) { // has roles to set up
 
                     for (const auto& each : gconf->get_roles_map()) {
                         bool good = true;
@@ -414,11 +431,11 @@ void __apply_commands_at_guild(dpp::cluster& core, const mull guild, dpp::guild*
 
                         tags_each.add_option(tags_each_list);
                         tags.add_option(tags_each);
-                        has_one = true;
                     }
 
-                    if (has_one) enable_tags = true;
+                    tags_enable = tags.options.size() > 0;
                 }
+                else tags_enable = false;
             }
             // PASTE
             {
@@ -438,6 +455,8 @@ void __apply_commands_at_guild(dpp::cluster& core, const mull guild, dpp::guild*
         gconf->set_config_locked(true);
         gconf->post_log("Guild config is now locked because slash commands are being updated.");
 
+        Lunaris::cout << Lunaris::console::color::DARK_GRAY << "Added update commands for guild #" << guild << ".";
+
         core.guild_commands_get(guild, [&core, commands_array, gconf, guild, lang](const dpp::confirmation_callback_t& data) mutable {
 
             DelayedTasker& delay_tasker = get_default_tasker(); // global reference, no worries
@@ -449,9 +468,11 @@ void __apply_commands_at_guild(dpp::cluster& core, const mull guild, dpp::guild*
             else {
                 dpp::slashcommand_map mapp = std::get<dpp::slashcommand_map>(data.value);
 
+                Lunaris::cout << Lunaris::console::color::DARK_GRAY << "Cleaning up commands at guild #" << guild << "...";
+
                 // remove
                 for(const auto& i : mapp){
-                    delay_tasker.push_back([&core, firsto = i.first, guild]() -> bool{
+                    delay_tasker.push_back([&core, firsto = i.first, namm = i.second.name, guild]() -> bool{
                         core.guild_command_delete(firsto, guild);
                         return true;
                     });
@@ -469,15 +490,15 @@ void __apply_commands_at_guild(dpp::cluster& core, const mull guild, dpp::guild*
                         Lunaris::cout << "[__apply_commands_at_guild](recursive_set) Response #" << data.http_info.status << ": " << data.http_info.body;
                         return;
                     }
-                    //Lunaris::cout << "[__apply_commands_at_guild] Applying commands... (" << (static_cast<int>(rn * 100.0f / commands_amount)) << "%) - Added '" << commands_array->cmds[rn].first << "'" ;
-
                     if ((rn + 1) >= commands_amount) {
-                        //Lunaris::cout << "[__apply_commands_at_guild] Applied all commands." ;
+                        Lunaris::cout << Lunaris::console::color::DARK_GRAY << "Applied all commands at guild #" << guild << ".";
                         return;
                     }
                 };
 
-                core.guild_command_create(commands_array->cmds[rn].second, guild, handle);
+                if (commands_array->cmds[rn].second.enabled) {
+                    core.guild_command_create(commands_array->cmds[rn].second.cmd, guild, handle);
+                }
             }, 0, commands_amount);
 
             delay_tasker.push_back([gconf]{ gconf->set_config_locked(false); gconf->post_log("Guild config is now unlocked! Slash commands tasks ended!"); return true;}); // UNLOCK GUILD CONFIG AFTER ALL OTHER TASKS

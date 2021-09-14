@@ -38,6 +38,15 @@ std::string get_thread_id_str()
     return ss.str();
 }
 
+int32_t rgb_to_decimal_color(int r, int g, int b)
+{
+    r = (r < 0 ? 0 : (r > 255 ? 255 : r));
+    g = (g < 0 ? 0 : (g > 255 ? 255 : g));
+    b = (b < 0 ? 0 : (b > 255 ? 255 : b));
+
+    return b | (g << 8) | (r << 16);
+}
+
 //size_t cast_to_switch(const std::string& src, const std::initializer_list<std::string> opts)
 //{
 //    size_t opt = 0;
