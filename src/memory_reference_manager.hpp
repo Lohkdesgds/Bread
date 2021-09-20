@@ -15,8 +15,8 @@
 #include "tools.hpp"
 
 const std::chrono::seconds time_each = std::chrono::seconds(3);
-constexpr size_t time_check_references = 20; // time_check_references * time_each = total time per possible memory flush.
-constexpr size_t min_living_time = 30000; // ms
+constexpr size_t time_check_references = 30; // time_check_references * time_each = total time per possible memory flush.
+constexpr size_t min_living_time = 120000; // ms
 constexpr size_t memory_reference_flush_max_overload_control = 20; // up to 50 files per try
 
 template<typename T>

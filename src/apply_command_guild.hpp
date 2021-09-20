@@ -15,9 +15,9 @@
 #include "custom_tasker.hpp"
 //#include "tags.hpp"
 
-const unsigned commands_version_val = 3;
+const unsigned commands_version_val = 4;
 
-const size_t commands_amount = 12;
+const size_t commands_amount = 13;
 const int max_err = 5;
 
 struct _dummy_commands{

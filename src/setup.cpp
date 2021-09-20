@@ -9,7 +9,7 @@ void set_presence(dpp::cluster& core, ConfigSetting& conf)
 	Lunaris::cout << "[set_presence] Presence updated successfully." ;
 }
 
-std::unique_ptr<dpp::cluster> setup_bot(ConfigSetting& c, bool& skip)
+void setup_bot(ConfigSetting& c, bool& skip)
 {
     if (mkdir(guild_config_path_default.c_str(), 0777) && errno != EEXIST){ Lunaris::cout << "Cannot create directory (GUILD)!" ; exit(1); }
     if (mkdir(user_config_path_default.c_str(), 0777)  && errno != EEXIST){ Lunaris::cout << "Cannot create directory (USER)!" ; exit(1); }
@@ -22,18 +22,16 @@ std::unique_ptr<dpp::cluster> setup_bot(ConfigSetting& c, bool& skip)
     c.flush(); // save
 
     // maybe in the future add shards and clusters? (more Raspberrys?)
-    auto dd = std::make_unique<dpp::cluster>(c.qgs("token"), c.qgi("intents"), c.qgi("shards"));
+    __global_cluster_sad_times = std::make_unique<dpp::cluster>(c.qgs("token"), c.qgi("intents"), c.qgi("shards"));
 
-    dd->on_ready                        ([d = dd.get(),&c,&skip](const auto& ev){ if(!skip) try{_hook_ev_ready(*d, c, ev);                  }catch(const std::exception& e){Lunaris::cout << Lunaris::console::color::RED << "Unexpected error: " << e.what();}catch(...){Lunaris::cout << Lunaris::console::color::DARK_RED << "Unexpected error: UNCAUGHT";}}); // pointer should not change
-    dd->on_interaction_create           ([d = dd.get(),&c,&skip](const auto& ev){ if(!skip) try{_hook_ev_interaction(*d, c, ev);            }catch(const std::exception& e){Lunaris::cout << Lunaris::console::color::RED << "Unexpected error: " << e.what();}catch(...){Lunaris::cout << Lunaris::console::color::DARK_RED << "Unexpected error: UNCAUGHT";}});
-    dd->on_message_create               ([d = dd.get(),&c,&skip](const auto& ev){ if(!skip) try{_hook_ev_message_create(*d, c, ev);         }catch(const std::exception& e){Lunaris::cout << Lunaris::console::color::RED << "Unexpected error: " << e.what();}catch(...){Lunaris::cout << Lunaris::console::color::DARK_RED << "Unexpected error: UNCAUGHT";}});
-    dd->on_guild_create                 ([d = dd.get(),&c,&skip](const auto& ev){ if(!skip) try{_hook_ev_guild_create(*d, c, ev);           }catch(const std::exception& e){Lunaris::cout << Lunaris::console::color::RED << "Unexpected error: " << e.what();}catch(...){Lunaris::cout << Lunaris::console::color::DARK_RED << "Unexpected error: UNCAUGHT";}});
-    dd->on_guild_delete                 ([d = dd.get(),&c,&skip](const auto& ev){ if(!skip) try{_hook_ev_guild_delete(*d, c, ev);           }catch(const std::exception& e){Lunaris::cout << Lunaris::console::color::RED << "Unexpected error: " << e.what();}catch(...){Lunaris::cout << Lunaris::console::color::DARK_RED << "Unexpected error: UNCAUGHT";}});
-    dd->on_guild_member_update          ([d = dd.get(),&c,&skip](const auto& ev){ if(!skip) try{_hook_ev_guild_member_update(*d, c, ev);    }catch(const std::exception& e){Lunaris::cout << Lunaris::console::color::RED << "Unexpected error: " << e.what();}catch(...){Lunaris::cout << Lunaris::console::color::DARK_RED << "Unexpected error: UNCAUGHT";}});
-    dd->on_message_reaction_add         ([d = dd.get(),&c,&skip](const auto& ev){ if(!skip) try{_hook_ev_message_reaction_add(*d, c, ev);   }catch(const std::exception& e){Lunaris::cout << Lunaris::console::color::RED << "Unexpected error: " << e.what();}catch(...){Lunaris::cout << Lunaris::console::color::DARK_RED << "Unexpected error: UNCAUGHT";}});
-    dd->on_log                          ([](const auto& ev){if (ev.severity > dpp::ll_trace) { Lunaris::cout << Lunaris::console::color::DARK_PURPLE << "[DPP] " << ev.message; }});
-
-    return dd;
+    __global_cluster_sad_times->on_ready                        ([d = __global_cluster_sad_times.get(),&c,&skip](const auto& ev){ if(!skip) try{_hook_ev_ready(*d, c, ev);                  }catch(const std::exception& e){Lunaris::cout << Lunaris::console::color::RED << "Unexpected error: " << e.what();}catch(...){Lunaris::cout << Lunaris::console::color::DARK_RED << "Unexpected error: UNCAUGHT";}}); // pointer should not change
+    __global_cluster_sad_times->on_interaction_create           ([d = __global_cluster_sad_times.get(),&c,&skip](const auto& ev){ if(!skip) try{_hook_ev_interaction(*d, c, ev);            }catch(const std::exception& e){Lunaris::cout << Lunaris::console::color::RED << "Unexpected error: " << e.what();}catch(...){Lunaris::cout << Lunaris::console::color::DARK_RED << "Unexpected error: UNCAUGHT";}});
+    __global_cluster_sad_times->on_message_create               ([d = __global_cluster_sad_times.get(),&c,&skip](const auto& ev){ if(!skip) try{_hook_ev_message_create(*d, c, ev);         }catch(const std::exception& e){Lunaris::cout << Lunaris::console::color::RED << "Unexpected error: " << e.what();}catch(...){Lunaris::cout << Lunaris::console::color::DARK_RED << "Unexpected error: UNCAUGHT";}});
+    __global_cluster_sad_times->on_guild_create                 ([d = __global_cluster_sad_times.get(),&c,&skip](const auto& ev){ if(!skip) try{_hook_ev_guild_create(*d, c, ev);           }catch(const std::exception& e){Lunaris::cout << Lunaris::console::color::RED << "Unexpected error: " << e.what();}catch(...){Lunaris::cout << Lunaris::console::color::DARK_RED << "Unexpected error: UNCAUGHT";}});
+    __global_cluster_sad_times->on_guild_delete                 ([d = __global_cluster_sad_times.get(),&c,&skip](const auto& ev){ if(!skip) try{_hook_ev_guild_delete(*d, c, ev);           }catch(const std::exception& e){Lunaris::cout << Lunaris::console::color::RED << "Unexpected error: " << e.what();}catch(...){Lunaris::cout << Lunaris::console::color::DARK_RED << "Unexpected error: UNCAUGHT";}});
+    __global_cluster_sad_times->on_guild_member_update          ([d = __global_cluster_sad_times.get(),&c,&skip](const auto& ev){ if(!skip) try{_hook_ev_guild_member_update(*d, c, ev);    }catch(const std::exception& e){Lunaris::cout << Lunaris::console::color::RED << "Unexpected error: " << e.what();}catch(...){Lunaris::cout << Lunaris::console::color::DARK_RED << "Unexpected error: UNCAUGHT";}});
+    __global_cluster_sad_times->on_message_reaction_add         ([d = __global_cluster_sad_times.get(),&c,&skip](const auto& ev){ if(!skip) try{_hook_ev_message_reaction_add(*d, c, ev);   }catch(const std::exception& e){Lunaris::cout << Lunaris::console::color::RED << "Unexpected error: " << e.what();}catch(...){Lunaris::cout << Lunaris::console::color::DARK_RED << "Unexpected error: UNCAUGHT";}});
+    __global_cluster_sad_times->on_log                          ([](const auto& ev){if (ev.severity > dpp::ll_trace) { Lunaris::cout << Lunaris::console::color::DARK_PURPLE << "[DPP] " << ev.message; }});
 }
 
 
@@ -70,7 +68,7 @@ void _hook_ev_interaction(dpp::cluster& core, ConfigSetting& conf, const dpp::in
             // any
             __handle_command_statistics_any(core, ev, cmd);
 
-            static const std::initializer_list<lang_command> commands_expected = { lang_command::TIME, lang_command::RGB2DECIMAL, lang_command::POINTS, lang_command::COPY, lang_command::PASTE, lang_command::STATS, lang_command::POLL, lang_command::ROLES, lang_command::CONFIG, lang_command::SELFCONF, lang_command::PING, lang_command::BOTSTATUS };
+            static const std::initializer_list<lang_command> commands_expected = { lang_command::FEEDBACK, lang_command::TIME, lang_command::RGB2DECIMAL, lang_command::POINTS, lang_command::COPY, lang_command::PASTE, lang_command::STATS, lang_command::POLL, lang_command::ROLES, lang_command::CONFIG, lang_command::SELFCONF, lang_command::PING, lang_command::BOTSTATUS };
 
             switch(lang->command_from(cmd.name, commands_expected)){
             case lang_command::POINTS:
@@ -109,6 +107,9 @@ void _hook_ev_interaction(dpp::cluster& core, ConfigSetting& conf, const dpp::in
             case lang_command::RGB2DECIMAL:
                 __handle_command_rgb(core, ev, cmd, lang);
                 break;
+            case lang_command::FEEDBACK:
+                __handle_command_feedback(core, ev, cmd, lang);
+                break;
             default:
                 replying.set_content("Ainda não sou capaz disso. Desculpe.");
                 ev.edit_response(replying);
@@ -131,10 +132,10 @@ void _hook_ev_interaction(dpp::cluster& core, ConfigSetting& conf, const dpp::in
 void _hook_ev_message_create(dpp::cluster& core, ConfigSetting& conf, const dpp::message_create_t& ev)
 {
     const auto lang = get_lang(get_guild_config(ev.msg->guild_id)->get_language());
-
+    if (ev.msg->author->is_bot()) return;
     __handle_message_points(core, ev, lang);
     __handle_message_statistics(core, ev);
-    __handle_message_ping(core, ev, lang);
+    //__handle_message_ping(core, ev, lang);
 }
 
 void _hook_ev_guild_create(dpp::cluster& core, ConfigSetting& conf, const dpp::guild_create_t& ev)

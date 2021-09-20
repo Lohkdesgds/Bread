@@ -1,21 +1,21 @@
 #include "tools.hpp"
 
-void atomic_ull::plus()
-{
-    std::lock_guard<std::mutex> luck(m);
-    val++;
-}
-
-void atomic_ull::minus()
-{
-    std::lock_guard<std::mutex> luck(m);
-    val--;
-}
-
-mull atomic_ull::read()
-{
-    return val;
-}
+//void atomic_ull::plus()
+//{
+//    std::lock_guard<std::mutex> luck(m);
+//    val++;
+//}
+//
+//void atomic_ull::minus()
+//{
+//    std::lock_guard<std::mutex> luck(m);
+//    val--;
+//}
+//
+//mull atomic_ull::read()
+//{
+//    return val;
+//}
 
 mull get_time_ms()
 {

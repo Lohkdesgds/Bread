@@ -12,5 +12,5 @@
 
 const std::string ping_start_text_content = "||#PING|";
 
-void __handle_message_ping(dpp::cluster&, const dpp::message_create_t&, std::shared_ptr<EachLang>);
+//void __handle_message_ping(dpp::cluster&, const dpp::message_create_t&, std::shared_ptr<EachLang>);
 void __handle_command_ping(dpp::cluster&, const dpp::interaction_create_t&, dpp::command_interaction&, std::shared_ptr<EachLang>);

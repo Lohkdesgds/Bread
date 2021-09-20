@@ -71,6 +71,9 @@ void __handle_command_botstatus(dpp::cluster& core, const dpp::interaction_creat
         )
         .add_field(
             lang->get(lang_line::COMMAND_BOTSTATUS_FINAL_DELAYED_TASKS_AMOUNT), (u8"🥞 " + std::to_string(get_default_tasker().remaining())), true
+        )
+        .add_field(
+            lang->get(lang_line::COMMAND_BOTSTATUS_FINAL_DELAYED_FILES_AMOUNT), (u8"🏭 " + std::to_string(get_file_tasker().remaining())), true
         );
     
     replying.embeds.push_back(autoembed);

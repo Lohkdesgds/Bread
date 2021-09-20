@@ -55,7 +55,7 @@ void guild_data::category::from_json(const nlohmann::json& j)
     safe_json_array(j, "list", list, false);
 }
 
-nlohmann::json guild_data::to_json()
+nlohmann::json guild_data::to_json() const
 {
     nlohmann::json j;
     j["last_user_earn_points"] = last_user_earn_points;
@@ -93,35 +93,38 @@ void guild_data::from_json(const nlohmann::json& j)
     safe_json_array(j, "temp_logs", temp_logs, false);
 }
 
-GuildSelf::GuildSelf(const std::string& p)
-    : path(p)
+GuildSelf::GuildSelf(dpp::cluster& cor, const std::string& p)
+    : path(p), core(cor)
 {
-    auto safefile = get_lock_file();
-    try{
-        nlohmann::json j;
-        std::ifstream cfile(path);
-        if (!cfile.good()) return;
-        std::stringstream buffer;
-        buffer << cfile.rdbuf();
-        j = nlohmann::json::parse(buffer.str(), nullptr, false);
-        if (!j.empty() && !j.is_discarded())
-        {
-            data.from_json(j);
-            //Lunaris::cout << Lunaris::console::color::DARK_GRAY << "[GuildSelf] Loaded #" << p;
-        }
-        else {
-            Lunaris::cout << Lunaris::console::color::GOLD << "[WARN] GuildSelf: File was empty. Assuming corrupted or new file.";
-            post_log("[LOAD] File was empty or corrupted. Generated a new one. Sorry if any reset (please report)");
-        }
-    }
-    catch(const std::exception& e) {
-        Lunaris::cout << Lunaris::console::color::DARK_RED << "[ERROR] GuildSelf: couldn't load guild data: " << e.what() << ". Assuming corrupted file.";
-        post_log("[LOAD] Failed to load. Corrupted? I'm sorry. INFO: " + std::string(e.what()));
-    }
-    catch(...) {
-        Lunaris::cout << Lunaris::console::color::DARK_RED << "[ERROR] GuildSelf: couldn't load guild data. Assuming corrupted file.";
-        post_log("[LOAD] Failed to load. Corrupted? I'm sorry.");
-    }
+    nlohmann::json j = get_from_file(guild_config_path_default, path, ".json");
+    if (j.is_discarded() || j.empty()) return;
+    data.from_json(j);
+//    auto safefile = get_lock_file();
+//    try{
+//        nlohmann::json j;
+//        std::ifstream cfile(path);
+//        if (!cfile.good()) return;
+//        std::stringstream buffer;
+//        buffer << cfile.rdbuf();
+//        j = nlohmann::json::parse(buffer.str(), nullptr, false);
+//        if (!j.empty() && !j.is_discarded())
+//        {
+//            data.from_json(j);
+//            //Lunaris::cout << Lunaris::console::color::DARK_GRAY << "[GuildSelf] Loaded #" << p;
+//        }
+//        else {
+//            Lunaris::cout << Lunaris::console::color::GOLD << "[WARN] GuildSelf: File was empty. Assuming corrupted or new file.";
+//            post_log("[LOAD] File was empty or corrupted. Generated a new one. Sorry if any reset (please report)");
+//        }
+//    }
+//    catch(const std::exception& e) {
+//        Lunaris::cout << Lunaris::console::color::DARK_RED << "[ERROR] GuildSelf: couldn't load guild data: " << e.what() << ". Assuming corrupted file.";
+//        post_log("[LOAD] Failed to load. Corrupted? I'm sorry. INFO: " + std::string(e.what()));
+//    }
+//    catch(...) {
+//        Lunaris::cout << Lunaris::console::color::DARK_RED << "[ERROR] GuildSelf: couldn't load guild data. Assuming corrupted file.";
+//        post_log("[LOAD] Failed to load. Corrupted? I'm sorry.");
+//    }
 }
 
 GuildSelf::~GuildSelf()
@@ -130,7 +133,7 @@ GuildSelf::~GuildSelf()
 }
 
 GuildSelf::GuildSelf(GuildSelf&& oth) noexcept
-    : data(oth.data), path(oth.path), _had_update(oth._had_update)
+    : data(oth.data), path(oth.path), _had_update(oth._had_update), core(oth.core)
 {
     oth.path.clear();
     oth._had_update = false;
@@ -148,15 +151,38 @@ void GuildSelf::operator=(GuildSelf&& oth) noexcept
 bool GuildSelf::save()
 {
     if (path.empty()) return false;
-    const nlohmann::json& result = data.to_json();
-    if (result.empty()) return false;
-    auto safefile = get_lock_file();
-    std::ofstream cfile(path);
-    if (cfile.good()) {
-        cfile << data.to_json();
-        cfile.flush();
-        _had_update = false;
-        //Lunaris::cout << Lunaris::console::color::DARK_GRAY << "[GuildSelf] Flush #" << path;
+    const auto mj = data.to_json();
+    if (!save_file(core, mj, guild_config_path_default, path, ".json")) {
+        Lunaris::cout << Lunaris::console::color::RED << "[UserSelf] Could not flush " << path;
+    }
+    else _had_update = false;
+    return true;
+
+//    if (path.empty()) return false;
+//    const nlohmann::json& result = data.to_json();
+//    if (result.empty()) return false;
+//    auto safefile = get_lock_file();
+//    std::ofstream cfile(path);
+//    if (cfile.good()) {
+//        cfile << data.to_json();
+//        cfile.flush();
+//        _had_update = false;
+//        //Lunaris::cout << Lunaris::console::color::DARK_GRAY << "[GuildSelf] Flush #" << path;
+//        return true;
+//    }
+//    return false;
+}
+
+std::string GuildSelf::export_json() const
+{
+    return data.to_json().dump(1);
+}
+
+bool GuildSelf::import_json(const std::string& str)
+{
+    nlohmann::json j = nlohmann::json::parse(str, nullptr, false);
+    if (!j.empty() && !j.is_discarded()) {
+        data.from_json(j);
         return true;
     }
     return false;

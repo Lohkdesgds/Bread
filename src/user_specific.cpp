@@ -15,7 +15,7 @@ std::string user_data::clipboard_data::generate_url() const
     return "https://discord.com/channels/" + std::to_string(guild_id) + "/" + std::to_string(channel_id) + "/" + std::to_string(message_id);
 }
 
-nlohmann::json user_data::clipboard_data::to_json()
+nlohmann::json user_data::clipboard_data::to_json() const
 {
     nlohmann::json j;
     j["guild_id"] = guild_id;
@@ -31,7 +31,7 @@ void user_data::clipboard_data::from_json(const nlohmann::json& j)
     safe_json(j, "message_id", message_id);
 }
 
-nlohmann::json user_data::to_json()
+nlohmann::json user_data::to_json() const
 {
     nlohmann::json j;
 
@@ -79,32 +79,35 @@ void user_data::from_json(const nlohmann::json& j)
     safe_json_array(j, "points_per_guild", points_per_guild, false);
 }
 
-UserSelf::UserSelf(const std::string& p)
-    : path(p)
+UserSelf::UserSelf(dpp::cluster& cor, const std::string& p)
+    : path(p), core(cor)
 {
-    auto safefile = get_lock_file();
-    try{
-        nlohmann::json j;
-        std::ifstream cfile(path);
-        if (!cfile.good()) return;
-        std::stringstream buffer;
-        buffer << cfile.rdbuf();
-        j = nlohmann::json::parse(buffer.str(), nullptr, false);
-        if (!j.empty() && !j.is_discarded()) 
-        {
-            data.from_json(j);
-            //Lunaris::cout << Lunaris::console::color::DARK_GRAY << "[UserSelf] Loaded #" << p;
-        }
-        else {
-            Lunaris::cout << Lunaris::console::color::GOLD << "[WARN] UserSelf: File was empty. Assuming corrupted or new file.";
-        }
-    }
-    catch(const std::exception& e) {
-        Lunaris::cout << Lunaris::console::color::DARK_RED << "[ERROR] UserSelf: couldn't load user data: " << e.what() << ". Assuming corrupted file.";
-    }
-    catch(...) {
-        Lunaris::cout << Lunaris::console::color::DARK_RED << "[ERROR] UserSelf: couldn't load user data. Assuming corrupted file.";
-    }
+    nlohmann::json j = get_from_file(user_config_path_default, path, ".json");
+    if (j.is_discarded() || j.empty()) return;
+    data.from_json(j);
+//    auto safefile = get_lock_file();
+//    try{
+//        nlohmann::json j;
+//        std::ifstream cfile(path);
+//        if (!cfile.good()) return;
+//        std::stringstream buffer;
+//        buffer << cfile.rdbuf();
+//        j = nlohmann::json::parse(buffer.str(), nullptr, false);
+//        if (!j.empty() && !j.is_discarded()) 
+//        {
+//            data.from_json(j);
+//            //Lunaris::cout << Lunaris::console::color::DARK_GRAY << "[UserSelf] Loaded #" << p;
+//        }
+//        else {
+//            Lunaris::cout << Lunaris::console::color::GOLD << "[WARN] UserSelf: File was empty. Assuming corrupted or new file.";
+//        }
+//    }
+//    catch(const std::exception& e) {
+//        Lunaris::cout << Lunaris::console::color::DARK_RED << "[ERROR] UserSelf: couldn't load user data: " << e.what() << ". Assuming corrupted file.";
+//    }
+//    catch(...) {
+//        Lunaris::cout << Lunaris::console::color::DARK_RED << "[ERROR] UserSelf: couldn't load user data. Assuming corrupted file.";
+//    }
 }
 
 UserSelf::~UserSelf()
@@ -113,7 +116,7 @@ UserSelf::~UserSelf()
 }
 
 UserSelf::UserSelf(UserSelf&& oth) noexcept
-    : data(oth.data), path(oth.path), _had_update(oth._had_update)
+    : data(oth.data), path(oth.path), _had_update(oth._had_update), core(oth.core)
 {
     oth.path.clear();
     oth._had_update = false;
@@ -131,18 +134,31 @@ void UserSelf::operator=(UserSelf&& oth) noexcept
 bool UserSelf::save()
 {
     if (path.empty()) return false;
-    const nlohmann::json& result = data.to_json();
-    if (result.empty()) return false;
-    std::ofstream cfile(path);
-    auto safefile = get_lock_file();
-    if (cfile.good()) {
-        cfile << result;
-        cfile.flush();
-        _had_update = false;
-        //Lunaris::cout << Lunaris::console::color::DARK_GRAY << "[UserSelf] Flush #" << path;
-        return true;
+    const auto mj = data.to_json();
+    if (!save_file(core, mj, user_config_path_default, path, ".json")) {
+        Lunaris::cout << Lunaris::console::color::RED << "[UserSelf] Could not flush " << path;
     }
-    return false;
+    else _had_update = false;
+    return true;
+
+//    if (path.empty()) return false;
+//    const nlohmann::json& result = data.to_json();
+//    if (result.empty()) return false;
+//    std::ofstream cfile(path);
+//    auto safefile = get_lock_file();
+//    if (cfile.good()) {
+//        cfile << result;
+//        cfile.flush();
+//        _had_update = false;
+//        //Lunaris::cout << Lunaris::console::color::DARK_GRAY << "[UserSelf] Flush #" << path;
+//        return true;
+//    }
+//    return false;
+}
+
+std::string UserSelf::export_json() const
+{
+    return data.to_json().dump(1);
 }
 
 mull UserSelf::get_points() const

@@ -114,8 +114,10 @@ inline void MemoryReferenceManager<T>::keep_flush()
             for (auto it = umap.begin(); it != umap.end();)
             {
                 if (it->second.when_ms < time_here_now && it->second.ref.use_count() <= 1){
-                    //Lunaris::cout << "[MemoryReferenceManager] Cleared " << it->first << " from memory." ;
+                    //const auto __ref_tmp = it->first;
+                    //Lunaris::cout << "[MemoryReferenceManager] Clearing " << __ref_tmp << " from memory...";
                     it = umap.erase(it);
+                    //Lunaris::cout << "[MemoryReferenceManager] Cleared " << __ref_tmp << " from memory.";
                     if (++cleared_amount > memory_reference_flush_max_overload_control) break;
                 }
                 else ++it;
@@ -126,8 +128,8 @@ inline void MemoryReferenceManager<T>::keep_flush()
     Lunaris::cout << Lunaris::console::color::DARK_BLUE << "[MemoryReferenceManager] Thread " << genid() << " closing..." ;
 
     while(1) {
+        auto luck = get_lock();
         try {
-            auto luck = get_lock();
             for(auto& it : umap) it.second.ref.destroy();
             umap.clear();
         }
@@ -154,8 +156,8 @@ inline std::unique_lock<std::shared_mutex> MemoryReferenceManager<T>::get_lock(c
     while(!smu.try_lock()){
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
         if (++wait_count == 20) {
-            if (unique_name.empty()) Lunaris::cout << Lunaris::console::color::DARK_RED << "[MemoryReferenceManager] Thread " << genid() << " is having some issues locking!" ;
-            else                     Lunaris::cout << Lunaris::console::color::DARK_RED << "[MemoryReferenceManager] Thread named '" << unique_name << "' is having some issues locking!" ;
+            if (unique_name.empty()) Lunaris::cout << Lunaris::console::color::DARK_RED << "[MemoryReferenceManager] Thread " << genid() << " is having some issues locking shared!";
+            else                     Lunaris::cout << Lunaris::console::color::DARK_RED << "[MemoryReferenceManager] Thread named '" << unique_name << "' is having some issues locking shared!";
             wait_count = 0;
             if (!keep_working) throw std::runtime_error("Cannot lock when closing.");
         }

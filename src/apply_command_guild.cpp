@@ -30,7 +30,8 @@ void __apply_commands_at_guild(dpp::cluster& core, const mull guild, dpp::guild*
         dpp::slashcommand& bsts = commands_array->cmds[ 8].second.cmd; commands_array->cmds[ 8].first = "botstats";
         dpp::slashcommand& tiem = commands_array->cmds[ 9].second.cmd; commands_array->cmds[ 9].first = "time";
         dpp::slashcommand& drgb = commands_array->cmds[10].second.cmd; commands_array->cmds[10].first = "rgb2decimal";
-        dpp::slashcommand& mngr = commands_array->cmds[11].second.cmd; commands_array->cmds[11].first = "manager"; // last one please! (so a new reapply can be done only after full reload!)
+        dpp::slashcommand& fdbk = commands_array->cmds[11].second.cmd; commands_array->cmds[11].first = "feedback";
+        dpp::slashcommand& mngr = commands_array->cmds[12].second.cmd; commands_array->cmds[12].first = "manager"; // last one please! (so a new reapply can be done only after full reload!)
         bool& tags_enable = commands_array->cmds[5].second.enabled;
         // IF ADD NEW COMMANDS, UPDATE COMMANDS_AMOUNT!
 
@@ -140,6 +141,10 @@ void __apply_commands_at_guild(dpp::cluster& core, const mull guild, dpp::guild*
             drgb.set_description(lang->get(lang_command::RGB2DECIMAL_DESC));
             drgb.set_application_id(core.me.id);
 
+            fdbk.set_name(lang->get(lang_command::FEEDBACK));
+            fdbk.set_description(lang->get(lang_command::FEEDBACK_DESC));
+            fdbk.set_application_id(core.me.id);
+
             tags.set_name(lang->get(lang_command::ROLES));
             tags.set_description(lang->get(lang_command::ROLES_DESC));
             tags.set_application_id(core.me.id);
@@ -178,6 +183,7 @@ void __apply_commands_at_guild(dpp::cluster& core, const mull guild, dpp::guild*
                 // >  MAIN COMMANDS
                 // ----------------------------------------- //
 
+                opt mngr_data = opt(opt_t::co_sub_command,       lang->get(lang_command::CONFIG_EXPORT),             lang->get(lang_command::CONFIG_EXPORT_DESC));
                 opt mngr_appl = opt(opt_t::co_sub_command,       lang->get(lang_command::CONFIG_APPLY),              lang->get(lang_command::CONFIG_APPLY_DESC));
                 opt mngr_logs = opt(opt_t::co_sub_command,       lang->get(lang_command::CONFIG_LOGS),               lang->get(lang_command::CONFIG_LOGS_DESC));
                 opt mngr_lang = opt(opt_t::co_sub_command,       lang->get(lang_command::CONFIG_LANGUAGE),           lang->get(lang_command::CONFIG_LANGUAGE_DESC));
@@ -307,6 +313,7 @@ void __apply_commands_at_guild(dpp::cluster& core, const mull guild, dpp::guild*
                 // >  FINAL LINK TO ROOT COMMAND
                 // ----------------------------------------- //
 
+                mngr.add_option(mngr_data);
                 mngr.add_option(mngr_appl);
                 mngr.add_option(mngr_logs);
                 mngr.add_option(mngr_lang);
@@ -326,11 +333,14 @@ void __apply_commands_at_guild(dpp::cluster& core, const mull guild, dpp::guild*
                 opt self_colr = opt(opt_t::co_sub_command,  lang->get(lang_command::SELFCONF_COLOR), lang->get(lang_command::SELFCONF_COLOR_DESC));
                 opt self_colr_vall = opt(opt_t::co_integer, lang->get(lang_command::SELFCONF_COLOR_VALUE), lang->get(lang_command::SELFCONF_COLOR_VALUE_DESC), true);
 
+                opt self_data = opt(opt_t::co_sub_command,  lang->get(lang_command::SELFCONF_DATA), lang->get(lang_command::SELFCONF_DATA_DESC));
+                
                 self_levl.add_option(self_levl_bool);
                 self_colr.add_option(self_colr_vall);
 
                 self.add_option(self_levl);
                 self.add_option(self_colr);
+                self.add_option(self_data);
             }
             // RGB
             {
@@ -379,33 +389,24 @@ void __apply_commands_at_guild(dpp::cluster& core, const mull guild, dpp::guild*
 
                 stat.add_option(stats_user);
             }
+            // FEEDBACK
+            {
+                opt fdbk_text = opt(opt_t::co_string, lang->get(lang_command::FEEDBACK_TEXT), lang->get(lang_command::FEEDBACK_TEXT_DESC), true);
+
+                fdbk.add_option(fdbk_text);
+            }
+            // TIEM
+            {
+                opt tiem_dayy = opt(opt_t::co_integer,lang->get(lang_command::TIME_DAY_OFFSET), lang->get(lang_command::TIME_DAY_OFFSET_DESC));
+                opt tiem_hour = opt(opt_t::co_integer,lang->get(lang_command::TIME_HOUR_OFFSET), lang->get(lang_command::TIME_HOUR_OFFSET_DESC));
+                opt tiem_mins = opt(opt_t::co_integer,lang->get(lang_command::TIME_MINUTE_OFFSET), lang->get(lang_command::TIME_MINUTE_OFFSET_DESC));
+
+                tiem.add_option(tiem_dayy);
+                tiem.add_option(tiem_hour);
+                tiem.add_option(tiem_mins);
+            }
             // TAGS
             {
-                /*if (gconf->get_roles_map().empty()) { // no roles, no command.
-                    core.guild_commands_get(guild, [&core, guild, gconf, lang](const dpp::confirmation_callback_t& data){
-                        if (data.is_error()) {
-                            gconf->post_log("Failed to get commands -> ERR#" + std::to_string(data.http_info.status) + " BODY: " + data.http_info.body);
-
-                            Lunaris::cout << "[__apply_commands_at_guild] Failed to clean roles command from guild #" << guild << "." ;
-                            Lunaris::cout << "[__apply_commands_at_guild] Response #" << data.http_info.status << ": " << data.http_info.body ;
-                            return;
-                        }
-                        dpp::slashcommand_map mapp = std::get<dpp::slashcommand_map>(data.value);
-
-                        for(const auto& i : mapp) {
-                            if (i.second.name == lang->get(lang_command::ROLES)){
-                                //Lunaris::cout << "FOUND_DELETE_COMMAND_SUCCESS\n";
-                                core.guild_command_delete(i.second.id, guild, [guild, gconf, nam = i.second.name](const dpp::confirmation_callback_t& data) {
-                                    if (data.is_error()) {
-                                        gconf->post_log("Failed to clear command '" + nam + "' -> ERR#" + std::to_string(data.http_info.status) + " BODY: " + data.http_info.body);
-                                        Lunaris::cout << "[__apply_commands_at_guild] Failed to clean roles command from guild #" << guild << "." ;
-                                        Lunaris::cout << "[__apply_commands_at_guild] Response #" << data.http_info.status << ": " << data.http_info.body ;
-                                    }
-                                });
-                            }
-                        }
-                    });
-                }*/
                 if (gconf->get_roles_map().size() > 0) { // has roles to set up
 
                     for (const auto& each : gconf->get_roles_map()) {
@@ -472,6 +473,16 @@ void __apply_commands_at_guild(dpp::cluster& core, const mull guild, dpp::guild*
 
                 // remove
                 for(const auto& i : mapp){
+                    
+                    bool _skip_lol = false;
+                    for(size_t pp = 0; pp < commands_amount; pp++){
+                        if (commands_array->cmds[pp].second.cmd.name == i.second.name){ // this would break if commands were global.
+                            _skip_lol = true;
+                            break;
+                        }
+                    }
+                    if (_skip_lol) continue; // it will update it!
+
                     delay_tasker.push_back([&core, firsto = i.first, namm = i.second.name, guild]() -> bool{
                         core.guild_command_delete(firsto, guild);
                         return true;

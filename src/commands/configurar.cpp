@@ -26,7 +26,7 @@ void __handle_command_configurar(dpp::cluster& core, const dpp::interaction_crea
     const auto options = get_first_option(cmd); // configurar <OPT> {the args}
     const auto suboptions = get_first_option(options); // configurar <OPT> <SUBOPT> {the args}
 
-    static const std::initializer_list<lang_command> main_commands = { lang_command::CONFIG_APPLY, lang_command::CONFIG_EXTERNAL, lang_command::CONFIG_LOGS, lang_command::CONFIG_LANGUAGE, lang_command::CONFIG_ROLES, lang_command::CONFIG_POINTS, lang_command::CONFIG_ADMIN, lang_command::CONFIG_AUTOROLE, lang_command::CONFIG_LEVELS };
+    static const std::initializer_list<lang_command> main_commands = { lang_command::CONFIG_EXPORT, lang_command::CONFIG_APPLY, lang_command::CONFIG_EXTERNAL, lang_command::CONFIG_LOGS, lang_command::CONFIG_LANGUAGE, lang_command::CONFIG_ROLES, lang_command::CONFIG_POINTS, lang_command::CONFIG_ADMIN, lang_command::CONFIG_AUTOROLE, lang_command::CONFIG_LEVELS };
     static const std::initializer_list<lang_command> external_commands = { lang_command::CONFIG_EXTERNAL_CANPASTE };
     static const std::initializer_list<lang_command> roles_commands = { lang_command::CONFIG_ROLES_ADD, lang_command::CONFIG_ROLES_REMOVE, lang_command::CONFIG_ROLES_CLEANUP, lang_command::CONFIG_ROLES_COMBO };
     static const std::initializer_list<lang_command> admin_commands = { lang_command::CONFIG_ADMIN_ADD, lang_command::CONFIG_ADMIN_REMOVE, lang_command::CONFIG_ADMIN_VERIFY };
@@ -41,6 +41,19 @@ void __handle_command_configurar(dpp::cluster& core, const dpp::interaction_crea
         src.edit_response(lang->get(lang_line::COMMAND_GENERIC_SUCCESS_TAKE_TIME));
         gconf->post_log(u8"<@" + std::to_string(user_action) + "> -> APPLY done.");
         __apply_commands_at_guild(core, src.command.guild_id, nullptr);
+    }
+        return;
+    case lang_command::CONFIG_EXPORT:
+    {
+        const std::string str = gconf->export_json();
+
+        dpp::message alt;
+        alt.set_file_content(str);
+        alt.set_filename("guild_" + std::to_string(src.command.guild_id) + ".json");
+        alt.set_content("guild_" + std::to_string(src.command.guild_id) + ".json:");
+
+        core.direct_message_create(src.command.usr.id, alt);
+        src.edit_response(lang->get(lang_line::GENERIC_BOT_GOOD_SEE_DM));
     }
         return;
     case lang_command::CONFIG_LOGS:

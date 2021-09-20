@@ -1,14 +1,14 @@
 #include "secure_control.hpp"
 
-SafeFileControl::SafeFileControl(atomic_ull& a)
+SafeFileControl::SafeFileControl(std::atomic<mull>& a)
     : ref(a)
 {
-    ref.plus();
+    ++ref;
 }
 
 SafeFileControl::~SafeFileControl()
 {
-    if (count) ref.minus();
+    if (count) --ref;
 }
 
 SafeFileControl::SafeFileControl(SafeFileControl&& oth)
@@ -20,7 +20,7 @@ SafeFileControl::SafeFileControl(SafeFileControl&& oth)
 
 unsigned long long SafeFileControl::current_amount() const
 {
-    return ref.read();
+    return ref;
 }
 
 SafeFileControl TotalControl::get_lock()

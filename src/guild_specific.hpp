@@ -14,8 +14,10 @@
 #include "secure_control.hpp"
 #include "language.hpp"
 
+#include "bot_reference_so_bad.hpp"
 #include "tools.hpp"
 #include "memory_reference_manager.hpp"
+#include "jsoner.hpp"
 
 const std::string guild_config_path_default = "./guilds/";
 constexpr mull time_to_earn_points_diffuser_ms = 45 * 1000;
@@ -63,7 +65,7 @@ struct guild_data {
     std::vector<category> roles_available; // /cargos
     std::vector<mull> roles_considered_admin;
     std::vector<mull> roles_when_join;
-    std::vector<pair_id_level> role_per_level;
+    mutable std::vector<pair_id_level> role_per_level;
     std::string language;
     bool block_levelup_user_event = false; 
     mull last_user_earn_points = 0; // time last user earned.
@@ -76,7 +78,7 @@ struct guild_data {
     std::vector<std::pair<mull, std::string>> temp_logs;
     dummy_mutex temp_logs_mutex;
 
-    nlohmann::json to_json();
+    nlohmann::json to_json() const;
     void from_json(const nlohmann::json&);
 };
 
@@ -84,8 +86,9 @@ class GuildSelf {
     guild_data data;
     std::string path;
     bool _had_update = false;
+    dpp::cluster& core;
 public:
-    GuildSelf(const std::string&);
+    GuildSelf(dpp::cluster&, const std::string&);
     ~GuildSelf();
     
     GuildSelf(GuildSelf&&) noexcept;
@@ -95,6 +98,8 @@ public:
     void operator=(const GuildSelf&) = delete;
 
     bool save();
+    std::string export_json() const;
+    bool import_json(const std::string&);
 
     std::vector<guild_data::category>& get_roles_map();
     const std::vector<guild_data::category>& get_roles_map() const;
@@ -147,7 +152,7 @@ public:
     void set_config_locked(const bool);
 };
 
-inline MemoryReferenceManager<GuildSelf> __guild_memory_control([](const mull id){return GuildSelf{guild_config_path_default + std::to_string(id) + ".json"};}, "GuildSelf");
+inline MemoryReferenceManager<GuildSelf> __guild_memory_control([](const mull id){return GuildSelf{*__global_cluster_sad_times, std::to_string(id)};}, "GuildSelf");
 
 ComplexSharedPtr<GuildSelf> get_guild_config(const mull);
 //void delete_guild_config(const mull); // kick or ban from guild = delete configuration

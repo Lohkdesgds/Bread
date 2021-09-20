@@ -13,7 +13,9 @@
 #include "tools.hpp"
 #include "secure_control.hpp"
 
+#include "bot_reference_so_bad.hpp"
 #include "memory_reference_manager.hpp"
+#include "jsoner.hpp"
 
 const std::string user_config_path_default = "./users/";
 constexpr mull time_to_earn_points_sameuser_ms = 2 * 60 * 1000;
@@ -51,7 +53,7 @@ struct user_data {
         bool has_data() const;
         std::string generate_url() const;
 
-        nlohmann::json to_json();
+        nlohmann::json to_json() const;
         void from_json(const nlohmann::json&);
     };
     clipboard_data clipboard;
@@ -59,7 +61,7 @@ struct user_data {
     // user configurable:
     bool show_level_up_messages = true;
 
-    nlohmann::json to_json();
+    nlohmann::json to_json() const;
     void from_json(const nlohmann::json&);
 };
 
@@ -67,8 +69,9 @@ class UserSelf {
     user_data data;
     std::string path;
     bool _had_update = false;
+    dpp::cluster& core;
 public:
-    UserSelf(const std::string&);
+    UserSelf(dpp::cluster&, const std::string&);
     ~UserSelf();
 
     UserSelf(UserSelf&&) noexcept;
@@ -78,6 +81,7 @@ public:
     void operator=(const UserSelf&) = delete;
 
     bool save();
+    std::string export_json() const;
 
     mull get_points() const;
     mull get_points_at_guild(const mull) const;
@@ -113,6 +117,6 @@ public:
     void reset_clipboard();
 };
 
-inline MemoryReferenceManager<UserSelf> __user_memory_control([](const mull id){return UserSelf{user_config_path_default + std::to_string(id) + ".json"};}, "UserSelf");
+inline MemoryReferenceManager<UserSelf> __user_memory_control([](const mull id){return UserSelf{*__global_cluster_sad_times, std::to_string(id)};}, "UserSelf");
 
 ComplexSharedPtr<UserSelf> get_user_config(const mull);

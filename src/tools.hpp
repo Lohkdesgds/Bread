@@ -40,14 +40,14 @@ struct returnType<R(As...)>
  { using type = R; };
 
 
-class atomic_ull {
-    std::mutex m;
-    mull val = 0;
-public:
-    void plus();
-    void minus();
-    mull read();
-};
+//class atomic_ull {
+//    std::mutex m;
+//    mull val = 0;
+//public:
+//    void plus();
+//    void minus();
+//    mull read();
+//};
 
 template<typename T>
 class nullable_ref {

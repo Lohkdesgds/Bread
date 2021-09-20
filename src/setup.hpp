@@ -9,6 +9,7 @@
 
 #include <iostream>
 
+#include "bot_reference_so_bad.hpp"
 #include "tools.hpp"
 #include "configurer.hpp"
 #include "guild_specific.hpp"
@@ -25,6 +26,7 @@
 #include "commands/eu.hpp"
 #include "commands/ping.hpp"
 #include "commands/botstatus.hpp"
+#include "commands/feedback.hpp"
 #include "commands/rgbcolor.hpp"
 
 /// DEFAULTS
@@ -37,7 +39,7 @@ constexpr int default_shard_count = 0;
 void set_presence(dpp::cluster&, ConfigSetting&);
 
 // main call
-std::unique_ptr<dpp::cluster> setup_bot(ConfigSetting&, bool&);
+void setup_bot(ConfigSetting&, bool&);
 
 // generic hooks
 void _hook_ev_ready(dpp::cluster&, ConfigSetting&, const dpp::ready_t&);

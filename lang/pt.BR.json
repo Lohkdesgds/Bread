@@ -5,6 +5,7 @@
         ["GENERIC_BOT_SUCCESS", "Sucesso!"],
         ["GENERIC_BOT_SUCCESS_ON_RESET", "Sucesso! Agora voltamos ao padrão!"],
         ["GENERIC_BOT_NOT_ALLOWED_BECAUSE_GUILD_SETTINGS", "Desculpe, mas não posso fazer isso. Bloqueado temporariamente?"],
+        ["GENERIC_BOT_GOOD_SEE_DM", "Sucesso. Por favor verifique sua DM."],
 
         ["COMMAND_GENERIC_INVALID_ARGS", "Alguma coisa muito errada aconteceu. Acho que os argumentos não batem com o esperado! Não pude completar a tarefa."],
         ["COMMAND_GENERIC_INVALID_ARGS_WITH_NAME", "Alguma coisa deu errada no argumento '**{0}**'!"],
@@ -31,7 +32,8 @@
         ["COMMAND_BOTSTATUS_FINAL_MEMORY_USAGE_RAM", "Memória (RAM)"],
         ["COMMAND_BOTSTATUS_FINAL_USERS_IN_MEMORY", "Usuários na RAM"],
         ["COMMAND_BOTSTATUS_FINAL_GUILDS_IN_MEMORY", "Guilds na RAM"],
-        ["COMMAND_BOTSTATUS_FINAL_DELAYED_TASKS_AMOUNT", "Tasks demoradas"],
+        ["COMMAND_BOTSTATUS_FINAL_DELAYED_TASKS_AMOUNT", "Tasks acumuladas"],
+        ["COMMAND_BOTSTATUS_FINAL_DELAYED_FILES_AMOUNT", "Arquivos acumulados"],
 
         ["COMMAND_CONFIG_LOG_LOGS_TITLE", "Logs do bot para a sua guild:"],
         ["COMMAND_CONFIG_LANGUAGE_SUCCESS_TAKE_TIME_WITH_NAME", "Legal, o idioma agora é **{0}**! Por favor, aguarde alguns segundos enquanto atualizo a lista de comandos."],
@@ -77,6 +79,7 @@
         ["TIME", "hora"],
         ["BOTSTATUS", "botstatus"],
         ["RGB2DECIMAL", "rgb-para-decimal"],
+        ["FEEDBACK", "feedback"],
         ["POINTS", "pontos"],
         ["COPY", "Copiar"],
         ["PASTE", "colar"],
@@ -87,6 +90,12 @@
         ["SELFCONF", "eu"],
         ["PING_DESC", "Verificar latência"],
         ["TIME_DESC", "Que horas são?"],
+        ["TIME_DAY_OFFSET", "dias_offset"],
+        ["TIME_DAY_OFFSET_DESC", "Alterar tempo em dias (+ ou -)"],
+        ["TIME_HOUR_OFFSET", "horas_offset"],
+        ["TIME_HOUR_OFFSET_DESC", "Alterar tempo em horas (+ ou -)"],
+        ["TIME_MINUTE_OFFSET", "minutos_offset"],
+        ["TIME_MINUTE_OFFSET_DESC", "Alterar tempo em minutos (+ ou -)"],
         ["BOTSTATUS_DESC", "Verificar informações do bot"],
         ["RGB2DECIMAL_DESC", "Converter RGB para decimal (ferramenta)"],
         ["RGB2DECIMAL_RED", "vermelho"],
@@ -95,6 +104,9 @@
         ["RGB2DECIMAL_GREEN_DESC", "Verde [0,255]"],
         ["RGB2DECIMAL_BLUE", "azul"],
         ["RGB2DECIMAL_BLUE_DESC", "Azul [0,255]"],
+        ["FEEDBACK_DESC", "Enviar um feedback para o desenvolvedor"],
+        ["FEEDBACK_TEXT", "texto"],
+        ["FEEDBACK_TEXT_DESC", "O texto a enviar. (Seu nome e ID são salvos)"],
         ["POINTS_DESC", "Ver pontos do usuário"],
         ["POINTS_USER", "usuário"],
         ["POINTS_USER_DESC", "Quem?"],
@@ -131,6 +143,8 @@
         ["CONFIG_DESC", "Configure your server"],
         ["CONFIG_LOGS", "logs"],
         ["CONFIG_LOGS_DESC", "Mostrar os últimos logs do bot neste grupo (pode zerar depois de um tempo)"],
+        ["CONFIG_EXPORT", "exportar-config"],
+        ["CONFIG_EXPORT_DESC", "Exporta a configuração da guild"],
         ["CONFIG_APPLY", "aplicar"],
         ["CONFIG_APPLY_DESC", "Recarregar e aplicar últimas configurações (de comando e idioma)"],
         ["CONFIG_LANGUAGE", "idioma"],
@@ -223,6 +237,8 @@
         ["SELFCONF_COLOR", "cor"],
         ["SELFCONF_COLOR_DESC", "Definir uma cor padrão para seu perfil"],
         ["SELFCONF_COLOR_VALUE", "valor"],
-        ["SELFCONF_COLOR_VALUE_DESC", "Uma cor em valor decimal (-1 volta para aleatório)"]
+        ["SELFCONF_COLOR_VALUE_DESC", "Uma cor em valor decimal (-1 volta para aleatório)"],
+        ["SELFCONF_DATA", "dados-de-usuário"],
+        ["SELFCONF_DATA_DESC", "Fazer download de TODOS os seus dados no bot"]
     ]
 }

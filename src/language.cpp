@@ -201,10 +201,14 @@ bool LanguageControl::reload()
                         auto theon = strtolangline(eachpair.first);
 
                         if (theon == lang_line::_MAX){ 
-                            Lunaris::cout << Lunaris::console::color::AQUA << "[LANG]" << Lunaris::console::color::RED << " Invalid key pair at COMMANDS! Check code '" << eachpair.first << "' with value \"" << eachpair.second << "\". Skipped this line." ;
+                            Lunaris::cout << Lunaris::console::color::AQUA << "[LANG]" << Lunaris::console::color::RED << " Invalid key pair at LINES! Check code '" << eachpair.first << "' with value \"" << eachpair.second << "\". Skipped this line." ;
                             found_issues = true;
                         }
                         else {
+                            if (eachpair.second.empty()) {
+                                Lunaris::cout << Lunaris::console::color::AQUA << "[LANG]" << Lunaris::console::color::RED << " Invalid key pair at LINES! Check code '" << eachpair.first << "', value is EMPTY! Skipped this line." ;
+                                found_issues = true;
+                            }
                             language_lines[current_lang][theon] = eachpair.second;
                         }
                     }
@@ -226,6 +230,10 @@ bool LanguageControl::reload()
                             found_issues = true;
                         }
                         else {
+                            if (eachpair.second.empty()) {
+                                Lunaris::cout << Lunaris::console::color::AQUA << "[LANG]" << Lunaris::console::color::RED << " Invalid key pair at COMMANDS! Check code '" << eachpair.first << "', value is EMPTY! Skipped this line." ;
+                                found_issues = true;
+                            }
                             language_commands[current_lang][theon] = eachpair.second;
                         }
                     }
@@ -281,6 +289,7 @@ std::unordered_map<std::string, lang_command> __conversion_lang_command_gen()
     wrk["TIME"]                                     = lang_command::TIME;
     wrk["BOTSTATUS"]                                = lang_command::BOTSTATUS;
     wrk["RGB2DECIMAL"]                              = lang_command::RGB2DECIMAL;
+    wrk["FEEDBACK"]                                 = lang_command::FEEDBACK;
     wrk["POINTS"]                                   = lang_command::POINTS;
     wrk["COPY"]                                     = lang_command::COPY;
     wrk["PASTE"]                                    = lang_command::PASTE;
@@ -291,6 +300,12 @@ std::unordered_map<std::string, lang_command> __conversion_lang_command_gen()
     wrk["SELFCONF"]                                 = lang_command::SELFCONF;
     wrk["PING_DESC"]                                = lang_command::PING_DESC;
     wrk["TIME_DESC"]                                = lang_command::TIME_DESC;
+    wrk["TIME_DAY_OFFSET"]                          = lang_command::TIME_DAY_OFFSET;
+    wrk["TIME_DAY_OFFSET_DESC"]                     = lang_command::TIME_DAY_OFFSET_DESC;
+    wrk["TIME_HOUR_OFFSET"]                         = lang_command::TIME_HOUR_OFFSET;
+    wrk["TIME_HOUR_OFFSET_DESC"]                    = lang_command::TIME_HOUR_OFFSET_DESC;
+    wrk["TIME_MINUTE_OFFSET"]                       = lang_command::TIME_MINUTE_OFFSET;
+    wrk["TIME_MINUTE_OFFSET_DESC"]                  = lang_command::TIME_MINUTE_OFFSET_DESC;
     wrk["BOTSTATUS_DESC"]                           = lang_command::BOTSTATUS_DESC;
     wrk["RGB2DECIMAL_DESC"]                         = lang_command::RGB2DECIMAL_DESC;
     wrk["RGB2DECIMAL_RED"]                          = lang_command::RGB2DECIMAL_RED;
@@ -299,6 +314,9 @@ std::unordered_map<std::string, lang_command> __conversion_lang_command_gen()
     wrk["RGB2DECIMAL_GREEN_DESC"]                   = lang_command::RGB2DECIMAL_GREEN_DESC;
     wrk["RGB2DECIMAL_BLUE"]                         = lang_command::RGB2DECIMAL_BLUE;
     wrk["RGB2DECIMAL_BLUE_DESC"]                    = lang_command::RGB2DECIMAL_BLUE_DESC;
+    wrk["FEEDBACK_DESC"]                            = lang_command::FEEDBACK_DESC;
+    wrk["FEEDBACK_TEXT"]                            = lang_command::FEEDBACK_TEXT;
+    wrk["FEEDBACK_TEXT_DESC"]                       = lang_command::FEEDBACK_TEXT_DESC;
     wrk["POINTS_DESC"]                              = lang_command::POINTS_DESC;
     wrk["POINTS_USER"]                              = lang_command::POINTS_USER;
     wrk["POINTS_USER_DESC"]                         = lang_command::POINTS_USER_DESC;
@@ -337,6 +355,8 @@ std::unordered_map<std::string, lang_command> __conversion_lang_command_gen()
     wrk["CONFIG_APPLY_DESC"]                        = lang_command::CONFIG_APPLY_DESC;
     wrk["CONFIG_LOGS"]                              = lang_command::CONFIG_LOGS;
     wrk["CONFIG_LOGS_DESC"]                         = lang_command::CONFIG_LOGS_DESC;
+    wrk["CONFIG_EXPORT"]                            = lang_command::CONFIG_EXPORT;
+    wrk["CONFIG_EXPORT_DESC"]                       = lang_command::CONFIG_EXPORT_DESC;
     wrk["CONFIG_LANGUAGE"]                          = lang_command::CONFIG_LANGUAGE;
     wrk["CONFIG_LANGUAGE_DESC"]                     = lang_command::CONFIG_LANGUAGE_DESC;
     wrk["CONFIG_LANGUAGE_STRING"]                   = lang_command::CONFIG_LANGUAGE_STRING;
@@ -428,6 +448,8 @@ std::unordered_map<std::string, lang_command> __conversion_lang_command_gen()
     wrk["SELFCONF_COLOR_DESC"]                      = lang_command::SELFCONF_COLOR_DESC;
     wrk["SELFCONF_COLOR_VALUE"]                     = lang_command::SELFCONF_COLOR_VALUE;
     wrk["SELFCONF_COLOR_VALUE_DESC"]                = lang_command::SELFCONF_COLOR_VALUE_DESC;
+    wrk["SELFCONF_DATA"]                            = lang_command::SELFCONF_DATA;
+    wrk["SELFCONF_DATA_DESC"]                       = lang_command::SELFCONF_DATA_DESC;
 
     return wrk;
 }
@@ -441,6 +463,7 @@ std::unordered_map<std::string, lang_line> __conversion_lang_line_gen()
     wrk["GENERIC_BOT_SUCCESS"]                                  = lang_line::GENERIC_BOT_SUCCESS;
     wrk["GENERIC_BOT_SUCCESS_ON_RESET"]                         = lang_line::GENERIC_BOT_SUCCESS_ON_RESET;
     wrk["GENERIC_BOT_NOT_ALLOWED_BECAUSE_GUILD_SETTINGS"]       = lang_line::GENERIC_BOT_NOT_ALLOWED_BECAUSE_GUILD_SETTINGS;
+    wrk["GENERIC_BOT_GOOD_SEE_DM"]                              = lang_line::GENERIC_BOT_GOOD_SEE_DM;
     // generic from commands
     wrk["COMMAND_GENERIC_INVALID_ARGS"]                         = lang_line::COMMAND_GENERIC_INVALID_ARGS;
     wrk["COMMAND_GENERIC_INVALID_ARGS_WITH_NAME"]               = lang_line::COMMAND_GENERIC_INVALID_ARGS_WITH_NAME;
@@ -468,6 +491,7 @@ std::unordered_map<std::string, lang_line> __conversion_lang_line_gen()
     wrk["COMMAND_BOTSTATUS_FINAL_USERS_IN_MEMORY"]              = lang_line::COMMAND_BOTSTATUS_FINAL_USERS_IN_MEMORY;
     wrk["COMMAND_BOTSTATUS_FINAL_GUILDS_IN_MEMORY"]             = lang_line::COMMAND_BOTSTATUS_FINAL_GUILDS_IN_MEMORY;
     wrk["COMMAND_BOTSTATUS_FINAL_DELAYED_TASKS_AMOUNT"]         = lang_line::COMMAND_BOTSTATUS_FINAL_DELAYED_TASKS_AMOUNT;
+    wrk["COMMAND_BOTSTATUS_FINAL_DELAYED_FILES_AMOUNT"]         = lang_line::COMMAND_BOTSTATUS_FINAL_DELAYED_FILES_AMOUNT;
     // configurar.cpp
     wrk["COMMAND_CONFIG_LOG_LOGS_TITLE"]                        = lang_line::COMMAND_CONFIG_LOG_LOGS_TITLE;
     wrk["COMMAND_CONFIG_LANGUAGE_SUCCESS_TAKE_TIME_WITH_NAME"]  = lang_line::COMMAND_CONFIG_LANGUAGE_SUCCESS_TAKE_TIME_WITH_NAME;

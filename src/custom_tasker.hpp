@@ -9,8 +9,10 @@
 #include "tools.hpp"
 
 const std::chrono::seconds default_tasker_time = std::chrono::seconds(12);
-const std::chrono::seconds threshold_reached_tasker_time = std::chrono::seconds(6);
-constexpr size_t threshold_tasker_amount = 30;
+constexpr double threshold_reached_tasker_time_prop = 0.75;
+constexpr double threshold_reached_double_tasker_time_prop = 0.4;
+constexpr size_t threshold_tasker_amount = 100;
+constexpr size_t threshold_tasker_amount_double = 200;
 
 class DelayedTasker {
     std::thread work;

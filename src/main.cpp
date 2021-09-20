@@ -28,9 +28,9 @@ int main()
 	}
 	bool skip_events = false;
 
-	const auto bot = setup_bot(conf, skip_events);
+	setup_bot(conf, skip_events);
 
-	bot->start(true);
+	__global_cluster_sad_times->start(true);
 
 	std::string commandline;	
 	while(1) { 
@@ -40,22 +40,36 @@ int main()
 
 			skip_events = true;
 
-
 			Lunaris::cout << Lunaris::console::color::YELLOW << "Ending delayed tasks...";
+
 			DelayedTasker& dt = get_default_tasker();
+			DelayedTasker& dt2 = get_file_tasker();
+
 			dt.destroy(false);
+			
 			while(dt.remaining() > 0) {
 				Lunaris::cout << Lunaris::console::color::YELLOW << "Waiting delayed tasks to end... (Remaining: " << dt.remaining() << ")";
 				std::this_thread::sleep_for(std::chrono::seconds(5));
 			}
+			
 			dt.destroy(true); // join()
-			Lunaris::cout << Lunaris::console::color::GREEN << "Ended delayed tasks." ;
-
-
-			Lunaris::cout << Lunaris::console::color::YELLOW << "Locking new file openings and waiting for no file open..." ;
 
 			__user_memory_control.stop(false);
 			__guild_memory_control.stop(false);
+
+			dt2.destroy(false);
+
+			while(dt2.remaining() > 0) {
+				Lunaris::cout << Lunaris::console::color::YELLOW << "Waiting delayed file flush to end... (Remaining: " << dt2.remaining() << ")";
+				std::this_thread::sleep_for(std::chrono::seconds(5));
+			}
+
+			dt2.destroy(true);
+
+			Lunaris::cout << Lunaris::console::color::GREEN << "Ended delayed tasks." ;
+
+			Lunaris::cout << Lunaris::console::color::YELLOW << "Locking new file openings and waiting for no file open..." ;
+
 
 			while(safefile.current_amount() > 1 || __user_memory_control.size() > 0 || __guild_memory_control.size() > 0){
 				Lunaris::cout << Lunaris::console::color::YELLOW << "Waiting files to close... (" << safefile.current_amount() << " raw files remaining, " << __user_memory_control.size() << " users in memory, " << __guild_memory_control.size() << " guilds in memory)" ;
@@ -68,9 +82,9 @@ int main()
 			__user_memory_control.stop(true);
 
 
-			Lunaris::cout << Lunaris::console::color::GREEN << "Done. Goodbye! (Ignore error below)" ;
+			Lunaris::cout << Lunaris::console::color::GREEN << "Done. Goodbye! (Ignore error below, 5 sec delay)" ;
 
-			std::this_thread::sleep_for(std::chrono::seconds(2));
+			std::this_thread::sleep_for(std::chrono::seconds(5));
 
 			exit(0);
 		}
@@ -82,7 +96,7 @@ int main()
 					j["status_text"] = sliced;
 				});
 				conf.flush();
-				set_presence(*bot, conf);
+				set_presence(*__global_cluster_sad_times, conf);
 				Lunaris::cout << "Applied presence '" << sliced << "'" ;
 			}
 			else {

@@ -28,6 +28,7 @@ enum class lang_line{ // 0 TO _MAX
     GENERIC_BOT_SUCCESS,
     GENERIC_BOT_SUCCESS_ON_RESET,
     GENERIC_BOT_NOT_ALLOWED_BECAUSE_GUILD_SETTINGS,
+    GENERIC_BOT_GOOD_SEE_DM,
     // generic from commands
     COMMAND_GENERIC_INVALID_ARGS,
     COMMAND_GENERIC_INVALID_ARGS_WITH_NAME,
@@ -55,6 +56,7 @@ enum class lang_line{ // 0 TO _MAX
     COMMAND_BOTSTATUS_FINAL_USERS_IN_MEMORY,
     COMMAND_BOTSTATUS_FINAL_GUILDS_IN_MEMORY,
     COMMAND_BOTSTATUS_FINAL_DELAYED_TASKS_AMOUNT,
+    COMMAND_BOTSTATUS_FINAL_DELAYED_FILES_AMOUNT,
     // configurar.cpp
     COMMAND_CONFIG_LOG_LOGS_TITLE,
     COMMAND_CONFIG_LANGUAGE_SUCCESS_TAKE_TIME_WITH_NAME,
@@ -99,9 +101,10 @@ enum class lang_line{ // 0 TO _MAX
 };
 enum class lang_command{ // 0 TO _MAX
     PING, // used
-    TIME,
+    TIME, // used
     BOTSTATUS, // used
     RGB2DECIMAL, // used
+    FEEDBACK,
     POINTS, // used
     COPY, // used
     PASTE, // used
@@ -111,7 +114,13 @@ enum class lang_command{ // 0 TO _MAX
     CONFIG, // used
     SELFCONF, // used
     PING_DESC, // used
-    TIME_DESC,
+    TIME_DESC, // used
+        TIME_DAY_OFFSET,
+        TIME_DAY_OFFSET_DESC,
+        TIME_HOUR_OFFSET,
+        TIME_HOUR_OFFSET_DESC,
+        TIME_MINUTE_OFFSET,
+        TIME_MINUTE_OFFSET_DESC,
     BOTSTATUS_DESC, // used
     RGB2DECIMAL_DESC, // used
         RGB2DECIMAL_RED, // used
@@ -120,6 +129,9 @@ enum class lang_command{ // 0 TO _MAX
         RGB2DECIMAL_GREEN_DESC, // used
         RGB2DECIMAL_BLUE, // used
         RGB2DECIMAL_BLUE_DESC, // used
+    FEEDBACK_DESC,
+        FEEDBACK_TEXT,
+        FEEDBACK_TEXT_DESC,
     POINTS_DESC, // used
     POINTS_USER, // used
     POINTS_USER_DESC, // used
@@ -158,6 +170,8 @@ enum class lang_command{ // 0 TO _MAX
     CONFIG_APPLY_DESC, // used
     CONFIG_LOGS, // used
     CONFIG_LOGS_DESC, // used
+    CONFIG_EXPORT,
+    CONFIG_EXPORT_DESC,
     CONFIG_LANGUAGE, // used
     CONFIG_LANGUAGE_DESC, // used
         CONFIG_LANGUAGE_STRING, // used
@@ -249,6 +263,8 @@ enum class lang_command{ // 0 TO _MAX
         SELFCONF_COLOR_DESC, // used
             SELFCONF_COLOR_VALUE, // used
             SELFCONF_COLOR_VALUE_DESC, // used
+        SELFCONF_DATA,
+        SELFCONF_DATA_DESC,
     _MAX
 };
 
