@@ -15,7 +15,10 @@ void setup_bot(ConfigSetting& c, bool& skip)
     if (mkdir(user_config_path_default.c_str(), 0777)  && errno != EEXIST){ Lunaris::cout << "Cannot create directory (USER)!" ; exit(1); }
     if (mkdir(language_config_path.c_str(), 0777)  && errno != EEXIST)    { Lunaris::cout << "Cannot create directory (LANG)!" ; exit(1); }
 
-    langctrl.reload();
+    if (!langctrl.try_reload()){
+        Lunaris::cout << Lunaris::console::color::AQUA << "[SETUP]" << Lunaris::console::color::RED << " Please do something about the errors. I would NOT continue if there are errors.";
+        while(1) std::this_thread::sleep_for(std::chrono::seconds(30));
+    }
 
     // perfect 10 setup
     c.do_safe([](nlohmann::json& json){_fix_json_missing_vals(json);});

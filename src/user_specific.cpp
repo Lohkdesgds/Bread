@@ -79,35 +79,22 @@ void user_data::from_json(const nlohmann::json& j)
     safe_json_array(j, "points_per_guild", points_per_guild, false);
 }
 
+std::unique_lock<std::shared_mutex> UserSelf::luck() const
+{
+    return std::unique_lock<std::shared_mutex>(secure);
+}
+
+std::shared_lock<std::shared_mutex> UserSelf::luck_shr() const
+{
+    return std::shared_lock<std::shared_mutex>(secure);
+}
+
 UserSelf::UserSelf(dpp::cluster& cor, const std::string& p)
     : path(p), core(cor)
 {
     nlohmann::json j = get_from_file(user_config_path_default, path, ".json");
     if (j.is_discarded() || j.empty()) return;
     data.from_json(j);
-//    auto safefile = get_lock_file();
-//    try{
-//        nlohmann::json j;
-//        std::ifstream cfile(path);
-//        if (!cfile.good()) return;
-//        std::stringstream buffer;
-//        buffer << cfile.rdbuf();
-//        j = nlohmann::json::parse(buffer.str(), nullptr, false);
-//        if (!j.empty() && !j.is_discarded()) 
-//        {
-//            data.from_json(j);
-//            //Lunaris::cout << Lunaris::console::color::DARK_GRAY << "[UserSelf] Loaded #" << p;
-//        }
-//        else {
-//            Lunaris::cout << Lunaris::console::color::GOLD << "[WARN] UserSelf: File was empty. Assuming corrupted or new file.";
-//        }
-//    }
-//    catch(const std::exception& e) {
-//        Lunaris::cout << Lunaris::console::color::DARK_RED << "[ERROR] UserSelf: couldn't load user data: " << e.what() << ". Assuming corrupted file.";
-//    }
-//    catch(...) {
-//        Lunaris::cout << Lunaris::console::color::DARK_RED << "[ERROR] UserSelf: couldn't load user data. Assuming corrupted file.";
-//    }
 }
 
 UserSelf::~UserSelf()
@@ -118,12 +105,17 @@ UserSelf::~UserSelf()
 UserSelf::UserSelf(UserSelf&& oth) noexcept
     : data(oth.data), path(oth.path), _had_update(oth._had_update), core(oth.core)
 {
+    auto l2 = oth.luck();
+
     oth.path.clear();
     oth._had_update = false;
 }
 
 void UserSelf::operator=(UserSelf&& oth) noexcept
 {
+    auto l1 = luck();
+    auto l2 = oth.luck();
+
     data = std::move(oth.data);
     path = std::move(oth.path);
     _had_update = oth._had_update;
@@ -133,6 +125,8 @@ void UserSelf::operator=(UserSelf&& oth) noexcept
 
 bool UserSelf::save()
 {
+    auto l1 = luck();
+
     if (path.empty()) return false;
     const auto mj = data.to_json();
     if (!save_file(core, mj, user_config_path_default, path, ".json")) {
@@ -140,34 +134,23 @@ bool UserSelf::save()
     }
     else _had_update = false;
     return true;
-
-//    if (path.empty()) return false;
-//    const nlohmann::json& result = data.to_json();
-//    if (result.empty()) return false;
-//    std::ofstream cfile(path);
-//    auto safefile = get_lock_file();
-//    if (cfile.good()) {
-//        cfile << result;
-//        cfile.flush();
-//        _had_update = false;
-//        //Lunaris::cout << Lunaris::console::color::DARK_GRAY << "[UserSelf] Flush #" << path;
-//        return true;
-//    }
-//    return false;
 }
 
 std::string UserSelf::export_json() const
 {
+    auto l1 = luck_shr();
     return data.to_json().dump(1);
 }
 
 mull UserSelf::get_points() const
 {
+    auto l1 = luck_shr();
     return data.points;
 }
 
 mull UserSelf::get_points_at_guild(const mull gid) const
 {
+    auto l1 = luck_shr();
     auto it = data.points_per_guild.find(gid);
     if (it == data.points_per_guild.end()) return 0;
     return it->second;
@@ -175,37 +158,44 @@ mull UserSelf::get_points_at_guild(const mull gid) const
 
 bool UserSelf::get_show_level_up() const
 {
+    auto l1 = luck_shr();
     return data.show_level_up_messages;
 }
 
-int32_t UserSelf::get_user_color() const
+int64_t UserSelf::get_user_color() const
 {
+    auto l1 = luck_shr();
     return (data.pref_color < 0 ? random() : data.pref_color) % 0xFFFFFF;
 }
 
-void UserSelf::set_user_color(const int32_t val)
+void UserSelf::set_user_color(const int64_t val)
 {
+    auto l1 = luck();
     data.pref_color = val < 0 ? -1 : val;
     _had_update = true;
 }
 
 mull UserSelf::get_times_points_positive() const
 {
+    auto l1 = luck_shr();
     return data.times_they_got_positive_points;
 }
 
 mull UserSelf::get_times_points_negative() const
 {
+    auto l1 = luck_shr();
     return data.times_they_got_negative_points;
 }
 
 mull UserSelf::get_total_messages() const
 {
+    auto l1 = luck_shr();
     return data.messages_sent;
 }
 
 mull UserSelf::get_total_messages_at_guild(const mull gid) const
 {
+    auto l1 = luck_shr();
     auto it = data.messages_sent_per_guild.find(gid);
     if (it != data.messages_sent_per_guild.end()) return it->second;
     return 0;
@@ -213,11 +203,13 @@ mull UserSelf::get_total_messages_at_guild(const mull gid) const
 
 mull UserSelf::get_total_attachments() const
 {
+    auto l1 = luck_shr();
     return data.attachments_sent;
 }
 
 mull UserSelf::get_total_attachments_at_guild(const mull gid) const
 {
+    auto l1 = luck_shr();
     auto it = data.attachments_sent_per_guild.find(gid);
     if (it != data.attachments_sent_per_guild.end()) return it->second;
     return 0;
@@ -225,16 +217,19 @@ mull UserSelf::get_total_attachments_at_guild(const mull gid) const
 
 mull UserSelf::get_total_commands() const
 {
+    auto l1 = luck_shr();
     return data.commands_used;
 }
 
 const user_data::clipboard_data& UserSelf::get_clipboard() const
 {
+    auto l1 = luck_shr();
     return data.clipboard;
 }
 
 void UserSelf::add_points(const mull gid, const int pts)
 {
+    auto l1 = luck();
     data.last_points_earned = get_time_ms() + time_to_earn_points_sameuser_ms;
 
     if (pts < 0 && data.points_per_guild[gid] < (-pts)) {
@@ -255,23 +250,27 @@ void UserSelf::add_points(const mull gid, const int pts)
 
 bool UserSelf::is_earning_points_time() const
 {
+    auto l1 = luck_shr();
     return get_time_ms() > data.last_points_earned;
 }
 
 void UserSelf::set_points_at_guild(const mull gid, const mull val)
 {
+    auto l1 = luck();
     data.points_per_guild[gid] = val;
     _had_update = true;
 }
 
 void UserSelf::set_show_level_up(const bool shw)
 {
+    auto l1 = luck();
     data.show_level_up_messages = shw;
     _had_update = true;
 }
 
 void UserSelf::add_message_sent_once(const mull gid)
 {
+    auto l1 = luck();
     data.messages_sent_per_guild[gid]++;
     data.messages_sent++;
     _had_update = true;
@@ -279,6 +278,7 @@ void UserSelf::add_message_sent_once(const mull gid)
 
 void UserSelf::add_attachment_sent_once(const mull gid)
 {
+    auto l1 = luck();
     data.attachments_sent_per_guild[gid]++;
     data.attachments_sent++;
     _had_update = true;
@@ -286,12 +286,14 @@ void UserSelf::add_attachment_sent_once(const mull gid)
 
 void UserSelf::add_command_sent_once()
 {
+    auto l1 = luck();
     data.commands_used++;
     _had_update = true;
 }
 
 void UserSelf::set_clipboard(const mull g, const mull c, const mull m)
 {
+    auto l1 = luck();
     data.clipboard.guild_id = g;
     data.clipboard.channel_id = c;
     data.clipboard.message_id = m;
@@ -300,6 +302,7 @@ void UserSelf::set_clipboard(const mull g, const mull c, const mull m)
 
 void UserSelf::reset_clipboard()
 {
+    auto l1 = luck();
     data.clipboard.clear();
     _had_update = true;
 }

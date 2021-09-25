@@ -104,7 +104,7 @@ enum class lang_command{ // 0 TO _MAX
     TIME, // used
     BOTSTATUS, // used
     RGB2DECIMAL, // used
-    FEEDBACK,
+    FEEDBACK, // used
     POINTS, // used
     COPY, // used
     PASTE, // used
@@ -115,12 +115,12 @@ enum class lang_command{ // 0 TO _MAX
     SELFCONF, // used
     PING_DESC, // used
     TIME_DESC, // used
-        TIME_DAY_OFFSET,
-        TIME_DAY_OFFSET_DESC,
-        TIME_HOUR_OFFSET,
-        TIME_HOUR_OFFSET_DESC,
-        TIME_MINUTE_OFFSET,
-        TIME_MINUTE_OFFSET_DESC,
+        TIME_DAY_OFFSET, // used
+        TIME_DAY_OFFSET_DESC, // used
+        TIME_HOUR_OFFSET, // used
+        TIME_HOUR_OFFSET_DESC, // used
+        TIME_MINUTE_OFFSET, // used
+        TIME_MINUTE_OFFSET_DESC, // used
     BOTSTATUS_DESC, // used
     RGB2DECIMAL_DESC, // used
         RGB2DECIMAL_RED, // used
@@ -129,9 +129,9 @@ enum class lang_command{ // 0 TO _MAX
         RGB2DECIMAL_GREEN_DESC, // used
         RGB2DECIMAL_BLUE, // used
         RGB2DECIMAL_BLUE_DESC, // used
-    FEEDBACK_DESC,
-        FEEDBACK_TEXT,
-        FEEDBACK_TEXT_DESC,
+    FEEDBACK_DESC, // used
+        FEEDBACK_TEXT, // used
+        FEEDBACK_TEXT_DESC, // used
     POINTS_DESC, // used
     POINTS_USER, // used
     POINTS_USER_DESC, // used
@@ -163,15 +163,15 @@ enum class lang_command{ // 0 TO _MAX
     POLL_COLOR, // used
     POLL_COLOR_DESC, // used
     ROLES_DESC, // used
-    ROLES_EACH,
-    ROLES_EACH_DESC,
+    ROLES_EACH, // used
+    ROLES_EACH_DESC, // used
     CONFIG_DESC, // used
     CONFIG_APPLY, // used
     CONFIG_APPLY_DESC, // used
     CONFIG_LOGS, // used
     CONFIG_LOGS_DESC, // used
-    CONFIG_EXPORT,
-    CONFIG_EXPORT_DESC,
+    CONFIG_EXPORT, // used
+    CONFIG_EXPORT_DESC, // used
     CONFIG_LANGUAGE, // used
     CONFIG_LANGUAGE_DESC, // used
         CONFIG_LANGUAGE_STRING, // used
@@ -182,6 +182,10 @@ enum class lang_command{ // 0 TO _MAX
         CONFIG_EXTERNAL_CANPASTE_DESC, // used
             CONFIG_EXTERNAL_CANPASTE_ALLOW, // used
             CONFIG_EXTERNAL_CANPASTE_ALLOW_DESC, // used
+    CONFIG_POLLDEFAULTS, // 
+    CONFIG_POLLDEFAULTS_DESC, // 
+        CONFIG_POLLDEFAULTS_EMOJIS, // 
+        CONFIG_POLLDEFAULTS_EMOJIS_DESC, //
     CONFIG_ADMIN, // used
     CONFIG_ADMIN_DESC, // used
         CONFIG_ADMIN_ADD, // used
@@ -310,7 +314,7 @@ public:
     const std::vector<std::string> language_list() const;
     std::shared_ptr<EachLang> get_lang(const std::string&) const;
 
-    bool reload();
+    bool try_reload();
 };
 
 inline LanguageControl langctrl;

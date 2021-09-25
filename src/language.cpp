@@ -162,12 +162,12 @@ std::shared_ptr<EachLang> LanguageControl::get_lang(const std::string& key) cons
     return std::make_shared<EachLang>(EachLang{it_line->second, it_cmds->second});
 }
 
-bool LanguageControl::reload()
+bool LanguageControl::try_reload()
 {
-    std::lock_guard<std::mutex> luck(control);
+    Lunaris::cout << Lunaris::console::color::AQUA << "[LANG]" << Lunaris::console::color::YELLOW << " Preparing temporary loading stage..." ;
 
-    language_lines.clear();
-    language_commands.clear();
+    std::unordered_map<std::string, std::unordered_map<lang_line, std::string>> tmp_language_lines;
+    std::unordered_map<std::string, std::unordered_map<lang_command, std::string>> tmp_language_commands;
 
     Lunaris::cout << Lunaris::console::color::AQUA << "[LANG]" << Lunaris::console::color::YELLOW << " Opening configuration file '" << language_config_path << language_seek_filename << "'..." ;
 
@@ -209,7 +209,7 @@ bool LanguageControl::reload()
                                 Lunaris::cout << Lunaris::console::color::AQUA << "[LANG]" << Lunaris::console::color::RED << " Invalid key pair at LINES! Check code '" << eachpair.first << "', value is EMPTY! Skipped this line." ;
                                 found_issues = true;
                             }
-                            language_lines[current_lang][theon] = eachpair.second;
+                            tmp_language_lines[current_lang][theon] = eachpair.second;
                         }
                     }
                     //Lunaris::cout << Lunaris::console::color::AQUA << "[LANG]" << Lunaris::console::color::YELLOW << " Success loading language '" << current_lang << "' LINES." ;
@@ -234,18 +234,18 @@ bool LanguageControl::reload()
                                 Lunaris::cout << Lunaris::console::color::AQUA << "[LANG]" << Lunaris::console::color::RED << " Invalid key pair at COMMANDS! Check code '" << eachpair.first << "', value is EMPTY! Skipped this line." ;
                                 found_issues = true;
                             }
-                            language_commands[current_lang][theon] = eachpair.second;
+                            tmp_language_commands[current_lang][theon] = eachpair.second;
                         }
                     }
                     //Lunaris::cout << Lunaris::console::color::AQUA << "[LANG]" << Lunaris::console::color::YELLOW << " Success loading language '" << current_lang << "' COMMANDS." ;
                 }
                 else throw std::runtime_error("[LANG] LANGUAGE '" + current_lang + "' HAS NO COMMANDS?!");
 
-                if (auto __str = checksum_lang_line(language_lines[current_lang]); !__str.empty()) {
+                if (auto __str = checksum_lang_line(tmp_language_lines[current_lang]); !__str.empty()) {
                     Lunaris::cout << Lunaris::console::color::AQUA << "[LANG]" << Lunaris::console::color::GOLD << " Found missing LINE keys for '" << current_lang << "': " << __str ;
                     found_issues = true;
                 }
-                if (auto __str = checksum_lang_command(language_commands[current_lang]); !__str.empty()) {
+                if (auto __str = checksum_lang_command(tmp_language_commands[current_lang]); !__str.empty()) {
                     Lunaris::cout << Lunaris::console::color::AQUA << "[LANG]" << Lunaris::console::color::GOLD << " Found missing COMMAND keys for '" << current_lang << "': " << __str;
                     found_issues = true;
                 }
@@ -263,13 +263,19 @@ bool LanguageControl::reload()
         }
         Lunaris::cout << Lunaris::console::color::AQUA << "[LANG]" << (found_issues ? Lunaris::console::color::YELLOW : Lunaris::console::color::GREEN) << " All languages tasked.";
 
-        if (found_issues){
-            Lunaris::cout << Lunaris::console::color::AQUA << "[LANG]" << Lunaris::console::color::RED << " Please do something about the errors. I would NOT continue if there are errors.";
-            while(1) std::this_thread::sleep_for(std::chrono::seconds(30));
-        }
+        if (found_issues || tmp_language_lines.empty() || tmp_language_commands.empty()) return false;
 
-        return !language_lines.empty() && !language_commands.empty();
+        Lunaris::cout << Lunaris::console::color::AQUA << "[LANG]" << Lunaris::console::color::GREEN << " All feels good! Applying changes..." ;
+
+        // ALL GOOD, APPLY!
+        std::lock_guard<std::mutex> luck(control);
+        language_lines = tmp_language_lines;
+        language_commands = tmp_language_commands;
+
+        Lunaris::cout << Lunaris::console::color::AQUA << "[LANG]" << Lunaris::console::color::GREEN << " GOOD!" ;
+        return true;
     }
+    // NO DATA?
     return false;
 }
 
@@ -367,6 +373,10 @@ std::unordered_map<std::string, lang_command> __conversion_lang_command_gen()
     wrk["CONFIG_EXTERNAL_CANPASTE_DESC"]            = lang_command::CONFIG_EXTERNAL_CANPASTE_DESC;
     wrk["CONFIG_EXTERNAL_CANPASTE_ALLOW"]           = lang_command::CONFIG_EXTERNAL_CANPASTE_ALLOW;
     wrk["CONFIG_EXTERNAL_CANPASTE_ALLOW_DESC"]      = lang_command::CONFIG_EXTERNAL_CANPASTE_ALLOW_DESC;
+    wrk["CONFIG_POLLDEFAULTS"]                      = lang_command::CONFIG_POLLDEFAULTS;
+    wrk["CONFIG_POLLDEFAULTS_DESC"]                 = lang_command::CONFIG_POLLDEFAULTS_DESC;
+    wrk["CONFIG_POLLDEFAULTS_EMOJIS"]               = lang_command::CONFIG_POLLDEFAULTS_EMOJIS;
+    wrk["CONFIG_POLLDEFAULTS_EMOJIS_DESC"]          = lang_command::CONFIG_POLLDEFAULTS_EMOJIS_DESC;
     wrk["CONFIG_ADMIN"]                             = lang_command::CONFIG_ADMIN;
     wrk["CONFIG_ADMIN_DESC"]                        = lang_command::CONFIG_ADMIN_DESC;
     wrk["CONFIG_ADMIN_ADD"]                         = lang_command::CONFIG_ADMIN_ADD;

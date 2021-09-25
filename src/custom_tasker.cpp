@@ -6,12 +6,15 @@ void DelayedTasker::keep_tasking_so()
     Lunaris::cout << Lunaris::console::color::DARK_GREEN << "[DelayedTasker] Thread is up!";
     while(keep_working || tasks.size()){
 
-        std::this_thread::sleep_for(
-            tasks.size() > threshold_tasker_amount ? 
-                ((tasks.size() > threshold_tasker_amount_double) ? 
-                    (delay_each * threshold_reached_double_tasker_time_prop) : // super fast
-                    (delay_each * threshold_reached_tasker_time_prop)) : // fast
-                    delay_each); // default
+        if (keep_working) {
+            std::this_thread::sleep_for(
+                tasks.size() > threshold_tasker_amount ? 
+                    ((tasks.size() > threshold_tasker_amount_double) ? 
+                        (delay_each * threshold_reached_double_tasker_time_prop) : // super fast
+                        (delay_each * threshold_reached_tasker_time_prop)) : // fast
+                        delay_each); // default
+        }
+        else std::this_thread::sleep_for(std::chrono::milliseconds(100)); // quick!
 
         if (tasks.size()) {
             std::lock_guard<std::mutex> luck(tasks_m);

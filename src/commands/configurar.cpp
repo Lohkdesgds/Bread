@@ -26,7 +26,7 @@ void __handle_command_configurar(dpp::cluster& core, const dpp::interaction_crea
     const auto options = get_first_option(cmd); // configurar <OPT> {the args}
     const auto suboptions = get_first_option(options); // configurar <OPT> <SUBOPT> {the args}
 
-    static const std::initializer_list<lang_command> main_commands = { lang_command::CONFIG_EXPORT, lang_command::CONFIG_APPLY, lang_command::CONFIG_EXTERNAL, lang_command::CONFIG_LOGS, lang_command::CONFIG_LANGUAGE, lang_command::CONFIG_ROLES, lang_command::CONFIG_POINTS, lang_command::CONFIG_ADMIN, lang_command::CONFIG_AUTOROLE, lang_command::CONFIG_LEVELS };
+    static const std::initializer_list<lang_command> main_commands = { lang_command::CONFIG_EXPORT, lang_command::CONFIG_APPLY, lang_command::CONFIG_EXTERNAL, lang_command::CONFIG_POLLDEFAULTS, lang_command::CONFIG_LOGS, lang_command::CONFIG_LANGUAGE, lang_command::CONFIG_ROLES, lang_command::CONFIG_POINTS, lang_command::CONFIG_ADMIN, lang_command::CONFIG_AUTOROLE, lang_command::CONFIG_LEVELS };
     static const std::initializer_list<lang_command> external_commands = { lang_command::CONFIG_EXTERNAL_CANPASTE };
     static const std::initializer_list<lang_command> roles_commands = { lang_command::CONFIG_ROLES_ADD, lang_command::CONFIG_ROLES_REMOVE, lang_command::CONFIG_ROLES_CLEANUP, lang_command::CONFIG_ROLES_COMBO };
     static const std::initializer_list<lang_command> admin_commands = { lang_command::CONFIG_ADMIN_ADD, lang_command::CONFIG_ADMIN_REMOVE, lang_command::CONFIG_ADMIN_VERIFY };
@@ -47,6 +47,12 @@ void __handle_command_configurar(dpp::cluster& core, const dpp::interaction_crea
     {
         const std::string str = gconf->export_json();
 
+        // not today
+        //replying.set_file_content(str);
+        //replying.set_filename("guild_" + std::to_string(src.command.guild_id) + ".json");
+        //replying.set_content(lang->get(lang_line::GENERIC_BOT_SUCCESS));
+        //src.edit_response(replying);
+
         dpp::message alt;
         alt.set_file_content(str);
         alt.set_filename("guild_" + std::to_string(src.command.guild_id) + ".json");
@@ -54,6 +60,22 @@ void __handle_command_configurar(dpp::cluster& core, const dpp::interaction_crea
 
         core.direct_message_create(src.command.usr.id, alt);
         src.edit_response(lang->get(lang_line::GENERIC_BOT_GOOD_SEE_DM));
+    }
+        return;
+    case lang_command::CONFIG_POLLDEFAULTS:
+    {
+        const auto _arg_string = get_str_in_command(options, lang->get(lang_command::CONFIG_POLLDEFAULTS_EMOJIS));
+
+        // in the future if many options: if none set, it's a reset.
+
+        if (!_arg_string.is_null()) {
+            gconf->interface_default_poll([&](std::vector<std::string>& catg){ catg = extract_emojis_from(*_arg_string);});
+            src.edit_response(lang->get(lang_line::GENERIC_BOT_SUCCESS));
+        }
+        else {
+            gconf->interface_default_poll([&](std::vector<std::string>& catg){ catg.clear();});
+            src.edit_response(lang->get(lang_line::GENERIC_BOT_SUCCESS_ON_RESET));
+        }
     }
         return;
     case lang_command::CONFIG_LOGS:
@@ -125,28 +147,31 @@ void __handle_command_configurar(dpp::cluster& core, const dpp::interaction_crea
             if (!role) { src.edit_response(replaceargformatdirect(lang->get(lang_line::COMMAND_GENERIC_INVALID_ARGS_WITH_NAME), {lang->get(lang_command::CONFIG_ROLES_ADD_ROLE)})); return; }
             if (!name) { src.edit_response(replaceargformatdirect(lang->get(lang_line::COMMAND_GENERIC_INVALID_ARGS_WITH_NAME), {lang->get(lang_command::CONFIG_ROLES_ADD_NAME)})); return; }
 
-            auto& editroles = gconf->get_roles_map();
+            bool just_ret = false;
+            gconf->interface_roles_map([&](std::vector<guild_data::category>& editroles){
+                gconf->post_log(u8"<@" + std::to_string(user_action) + "> -> ROLES ADD command call -> CATEGORY='" + category.get() + "';ROLE='" + std::to_string(role.get()) + "';NAME='" + name.get() + "'");
 
-            gconf->post_log(u8"<@" + std::to_string(user_action) + "> -> ROLES ADD command call -> CATEGORY='" + category.get() + "';ROLE='" + std::to_string(role.get()) + "';NAME='" + name.get() + "'");
-
-            auto it = std::find_if(editroles.begin(), editroles.end(), [&](const guild_data::category& a){ return fix_name_for_cmd(a.name) == fix_name_for_cmd(category.get()); });
-            if (it == editroles.end()) {
-                guild_data::category cat;
-                cat.name = category.get();
-                editroles.push_back(cat);
-                it = --editroles.end();
-            }
-            guild_data::category& ref = *it;
-
-            for(auto& inn : ref.list){
-                if (role == inn.id){
-                    src.edit_response(replaceargformatdirect(lang->get(lang_line::COMMAND_GENERIC_FOUND_SWITCH_FROM_TO_NAMES), {inn.name, name.get()}));
-                    inn.name = name.get();
-                    return;
+                auto it = std::find_if(editroles.begin(), editroles.end(), [&](const guild_data::category& a){ return fix_name_for_cmd(a.name) == fix_name_for_cmd(category.get()); });
+                if (it == editroles.end()) {
+                    guild_data::category cat;
+                    cat.name = category.get();
+                    editroles.push_back(cat);
+                    it = --editroles.end();
                 }
-            }
+                guild_data::category& ref = *it;
 
-            ref.list.push_back(guild_data::pair_id_name{role.get(), name.get()});
+                for(auto& inn : ref.list){
+                    if (role == inn.id){
+                        src.edit_response(replaceargformatdirect(lang->get(lang_line::COMMAND_GENERIC_FOUND_SWITCH_FROM_TO_NAMES), {inn.name, name.get()}));
+                        inn.name = name.get();
+                        just_ret = true;
+                        return;
+                    }
+                }
+                ref.list.push_back(guild_data::pair_id_name{role.get(), name.get()});
+            });
+            if (just_ret) return;                
+
             src.edit_response(replaceargformatdirect(lang->get(lang_line::COMMAND_GENERIC_SUCCESS_ADD_WITH_NAME), {name.get()}));
         }
             break;
@@ -157,69 +182,71 @@ void __handle_command_configurar(dpp::cluster& core, const dpp::interaction_crea
 
             if (!category && !role) { src.edit_response(lang->get(lang_line::COMMAND_GENERIC_INVALID_ARGS)); return; }
 
-            auto& editroles = gconf->get_roles_map();
+            bool just_ret = false;
+            gconf->interface_roles_map([&](std::vector<guild_data::category>& editroles){
 
-            gconf->post_log(u8"<@" + std::to_string(user_action) + "> -> ROLES REMOVE command call -> CATEGORY='" + category.get() + "';ROLE='" + std::to_string(role.get()) + "'");
+                gconf->post_log(u8"<@" + std::to_string(user_action) + "> -> ROLES REMOVE command call -> CATEGORY='" + category.get() + "';ROLE='" + std::to_string(role.get()) + "'");
 
-            if (role != 0){
-                if (!category->empty()) {
+                if (role != 0){
+                    if (!category->empty()) {
+                        bool got_one = find_and_do(editroles, 
+                            [&](const guild_data::category& a){ return fix_name_for_cmd(a.name) == fix_name_for_cmd(*category); },
+                            [&](std::vector<guild_data::category>::iterator it){
+                                return find_and_do(it->list, 
+                                    [&](const guild_data::pair_id_name& a){ return role == a.id;},
+                                    [&](std::vector<guild_data::pair_id_name>::iterator it2){
+                                        it->list.erase(it2);
+                                        src.edit_response(replaceargformatdirect(lang->get(lang_line::COMMAND_GENERIC_SUCCESS_REMOVE_WITH_NAME), {it->name}));
+                                            //u8"Um cargo removido com sucesso da categoria '" + it->name + "'! Use o comando de aplicar quando terminar tudo.");
+                                        return true;
+                                    }
+                                );
+                            }
+                        );
+
+                        if (!got_one){ src.edit_response(replaceargformatdirect(lang->get(lang_line::COMMAND_GENERIC_CANT_FIND_WITH_NAME), {*category})); return; }
+                        return;
+                    }
+                    else { // roleid full search
+                        bool got_one = find_and_do(editroles, 
+                            [&](const guild_data::category& a){ return true; }, // any
+                            [&](std::vector<guild_data::category>::iterator it){
+                                return find_and_do(it->list, 
+                                    [&](const guild_data::pair_id_name& a){ return role == a.id;},
+                                    [&](std::vector<guild_data::pair_id_name>::iterator it2){
+                                        it->list.erase(it2);
+                                        src.edit_response(replaceargformatdirect(lang->get(lang_line::COMMAND_GENERIC_SUCCESS_REMOVE_WITH_NAME), {it->name}));
+                                            //u8"Encontrei o cargo na categoria '" + it->name + "'. Ele foi removido com sucesso! Use o comando de aplicar quando terminar tudo.");
+                                        return true;
+                                    }
+                                );
+                            }
+                        );
+
+                        if (!got_one){ src.edit_response(replaceargformatdirect(lang->get(lang_line::COMMAND_GENERIC_CANT_FIND_WITH_NAME), {std::to_string(*role)})); return; }
+                        return;
+                    }
+                }
+                else { // category delete
                     bool got_one = find_and_do(editroles, 
                         [&](const guild_data::category& a){ return fix_name_for_cmd(a.name) == fix_name_for_cmd(*category); },
-                        [&](std::vector<guild_data::category>::iterator it){
-                            return find_and_do(it->list, 
-                                [&](const guild_data::pair_id_name& a){ return role == a.id;},
-                                [&](std::vector<guild_data::pair_id_name>::iterator it2){
-                                    it->list.erase(it2);
-                                    src.edit_response(replaceargformatdirect(lang->get(lang_line::COMMAND_GENERIC_SUCCESS_REMOVE_WITH_NAME), {it->name}));
-                                        //u8"Um cargo removido com sucesso da categoria '" + it->name + "'! Use o comando de aplicar quando terminar tudo.");
-                                    return true;
-                                }
-                            );
+                        [&](std::vector<guild_data::category>::iterator it){                        
+                            editroles.erase(it);
+                            src.edit_response(replaceargformatdirect(lang->get(lang_line::COMMAND_GENERIC_SUCCESS_REMOVE_WITH_NAME), {it->name}));
+                                //u8"Categoria '" + it->name + "' removida com successo! Use o comando de aplicar quando terminar tudo.");
+                            return true;
                         }
                     );
 
                     if (!got_one){ src.edit_response(replaceargformatdirect(lang->get(lang_line::COMMAND_GENERIC_CANT_FIND_WITH_NAME), {*category})); return; }
                     return;
                 }
-                else { // roleid full search
-                    bool got_one = find_and_do(editroles, 
-                        [&](const guild_data::category& a){ return true; }, // any
-                        [&](std::vector<guild_data::category>::iterator it){
-                            return find_and_do(it->list, 
-                                [&](const guild_data::pair_id_name& a){ return role == a.id;},
-                                [&](std::vector<guild_data::pair_id_name>::iterator it2){
-                                    it->list.erase(it2);
-                                    src.edit_response(replaceargformatdirect(lang->get(lang_line::COMMAND_GENERIC_SUCCESS_REMOVE_WITH_NAME), {it->name}));
-                                        //u8"Encontrei o cargo na categoria '" + it->name + "'. Ele foi removido com sucesso! Use o comando de aplicar quando terminar tudo.");
-                                    return true;
-                                }
-                            );
-                        }
-                    );
-
-                    if (!got_one){ src.edit_response(replaceargformatdirect(lang->get(lang_line::COMMAND_GENERIC_CANT_FIND_WITH_NAME), {std::to_string(*role)})); return; }
-                    return;
-                }
-            }
-            else { // category delete
-                bool got_one = find_and_do(editroles, 
-                    [&](const guild_data::category& a){ return fix_name_for_cmd(a.name) == fix_name_for_cmd(*category); },
-                    [&](std::vector<guild_data::category>::iterator it){                        
-                        editroles.erase(it);
-                        src.edit_response(replaceargformatdirect(lang->get(lang_line::COMMAND_GENERIC_SUCCESS_REMOVE_WITH_NAME), {it->name}));
-                            //u8"Categoria '" + it->name + "' removida com successo! Use o comando de aplicar quando terminar tudo.");
-                        return true;
-                    }
-                );
-
-                if (!got_one){ src.edit_response(replaceargformatdirect(lang->get(lang_line::COMMAND_GENERIC_CANT_FIND_WITH_NAME), {*category})); return; }
-                return;
-            }
+            });
         }
             break;
         case lang_command::CONFIG_ROLES_CLEANUP:
         {
-            gconf->get_roles_map().clear();
+            gconf->interface_roles_map([&](std::vector<guild_data::category>& editroles){ editroles.clear(); });
             gconf->post_log(u8"<@" + std::to_string(user_action) + "> -> ROLES CLEAR command call.");
             src.edit_response(lang->get(lang_line::GENERIC_BOT_SUCCESS));
         }
@@ -232,18 +259,21 @@ void __handle_command_configurar(dpp::cluster& core, const dpp::interaction_crea
             if (!category) { src.edit_response(replaceargformatdirect(lang->get(lang_line::COMMAND_GENERIC_INVALID_ARGS_WITH_NAME), {lang->get(lang_command::CONFIG_ROLES_COMBO_CATEGORY)})); return; }
             if (!combinable) { src.edit_response(replaceargformatdirect(lang->get(lang_line::COMMAND_GENERIC_INVALID_ARGS_WITH_NAME), {lang->get(lang_command::CONFIG_ROLES_COMBO_COMBINABLE)})); return; }
 
-            auto& editroles = gconf->get_roles_map();
+            //auto& editroles = gconf->get_roles_map();
 
-            gconf->post_log(u8"<@" + std::to_string(user_action) + "> -> ROLES COMBO command call -> CATEGORY='" + category.get() + "';COMBINABLE='" + (combinable.get() ? "TRUE" : "FALSE") + "'");
+            bool got_one = false;
+            gconf->interface_roles_map([&](std::vector<guild_data::category>& editroles){
+                gconf->post_log(u8"<@" + std::to_string(user_action) + "> -> ROLES COMBO command call -> CATEGORY='" + category.get() + "';COMBINABLE='" + (combinable.get() ? "TRUE" : "FALSE") + "'");
 
-            bool got_one = find_and_do(editroles, 
-                [&](const guild_data::category& a){ return fix_name_for_cmd(a.name) == fix_name_for_cmd(*category); },
-                [&](std::vector<guild_data::category>::iterator it){                        
-                    it->can_combine = *combinable;
-                    src.edit_response(lang->get(lang_line::GENERIC_BOT_SUCCESS));
-                    return true;
-                }
-            );
+                got_one = find_and_do(editroles, 
+                    [&](const guild_data::category& a){ return fix_name_for_cmd(a.name) == fix_name_for_cmd(*category); },
+                    [&](std::vector<guild_data::category>::iterator it){                        
+                        it->can_combine = *combinable;
+                        src.edit_response(lang->get(lang_line::GENERIC_BOT_SUCCESS));
+                        return true;
+                    }
+                );
+            });
 
             if (!got_one){ src.edit_response(replaceargformatdirect(lang->get(lang_line::COMMAND_GENERIC_CANT_FIND_WITH_NAME), {*category})); return; }
             return;            

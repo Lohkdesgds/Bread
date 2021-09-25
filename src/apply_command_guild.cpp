@@ -60,43 +60,50 @@ void __apply_commands_at_guild(dpp::cluster& core, const mull guild, dpp::guild*
             }
             
             // CLEANUP ROLES COMMAND ROLES NOT EXISTENT
-            for(auto j = gconf->get_roles_map().begin(); j != gconf->get_roles_map().end();)
-            {
-                for(auto k = j->list.begin(); k != j->list.end();) {
-                    if (std::find(got.roles.begin(), got.roles.end(), k->id) == got.roles.end()){
-                        __report += "Removed now invalid role from role command category `" + j->name + "` named `" + k->name + "` id `" + std::to_string(k->id) + "`\n";
-                        k = j->list.erase(k);
+            gconf->interface_roles_map([&](std::vector<guild_data::category>& catg){
+                for(auto j = catg.begin(); j != catg.end();)
+                {
+                    for(auto k = j->list.begin(); k != j->list.end();) {
+                        if (std::find(got.roles.begin(), got.roles.end(), k->id) == got.roles.end()){
+                            __report += "Removed now invalid role from role command category `" + j->name + "` named `" + k->name + "` id `" + std::to_string(k->id) + "`\n";
+                            k = j->list.erase(k);
+                        }
+                        else ++k;
                     }
-                    else ++k;
-                }
 
-                if (j->list.empty()) {
-                    __report += "Removed now empty category role named `" + j->name + "\n";
-                    j = gconf->get_roles_map().erase(j);
+                    if (j->list.empty()) {
+                        __report += "Removed now empty category role named `" + j->name + "\n";
+                        j = catg.erase(j);
+                    }
+                    else ++j;
                 }
-                else ++j;
-            }
+            });
 
             // CLEANUP LEVELUP ROLES NOT EXISTENT
-            for(auto j = gconf->get_roles_per_level_map().begin(); j != gconf->get_roles_per_level_map().end();)
-            {
-                if (std::find(got.roles.begin(), got.roles.end(), j->id) == got.roles.end()){
-                    __report += "Removed now invalid role from level roles level `" + std::to_string(j->level) + "` id `" + std::to_string(j->id) + "`\n";
-                    j = gconf->get_roles_per_level_map().erase(j);
+            gconf->interface_roles_per_level_map([&](std::vector<guild_data::pair_id_level>& catg){
+                for(auto j = catg.begin(); j != catg.end();)
+                {
+                    if (std::find(got.roles.begin(), got.roles.end(), j->id) == got.roles.end()){
+                        __report += "Removed now invalid role from level roles level `" + std::to_string(j->level) + "` id `" + std::to_string(j->id) + "`\n";
+                        j = catg.erase(j);
+                    }
+                    else ++j;
                 }
-                else ++j;
-            }
+            });
             gconf->sort_role_per_level();
 
             // CLEANUP AUTOROLE ROLES NOT EXISTENT
-            for(auto j = gconf->get_roles_joined().begin(); j != gconf->get_roles_joined().end();)
-            {
-                if (std::find(got.roles.begin(), got.roles.end(), *j) == got.roles.end()){
-                    __report += "Removed now invalid role from autorole id `" + std::to_string(*j) + "`\n";
-                    j = gconf->get_roles_joined().erase(j);
+            gconf->interface_roles_joined([&](std::vector<mull>& catg){
+                for(auto j = catg.begin(); j != catg.end();)
+                {
+                    if (std::find(got.roles.begin(), got.roles.end(), *j) == got.roles.end()){
+                        __report += "Removed now invalid role from autorole id `" + std::to_string(*j) + "`\n";
+                        j = catg.erase(j);
+                    }
+                    else ++j;
                 }
-                else ++j;
-            }
+
+            });
         }
 
         {
@@ -193,6 +200,7 @@ void __apply_commands_at_guild(dpp::cluster& core, const mull guild, dpp::guild*
                 opt mngr_role = opt(opt_t::co_sub_command_group, lang->get(lang_command::CONFIG_ROLES),              lang->get(lang_command::CONFIG_ROLES_DESC));
                 opt mngr_arle = opt(opt_t::co_sub_command_group, lang->get(lang_command::CONFIG_AUTOROLE),           lang->get(lang_command::CONFIG_AUTOROLE_DESC));
                 opt mngr_levl = opt(opt_t::co_sub_command_group, lang->get(lang_command::CONFIG_LEVELS),             lang->get(lang_command::CONFIG_LEVELS_DESC));
+                opt mngr_poll = opt(opt_t::co_sub_command,       lang->get(lang_command::CONFIG_POLLDEFAULTS),       lang->get(lang_command::CONFIG_POLLDEFAULTS_DESC));
 
 
 
@@ -243,6 +251,7 @@ void __apply_commands_at_guild(dpp::cluster& core, const mull guild, dpp::guild*
                 opt mngr_levl_redr_chid = opt(opt_t::co_channel,lang->get(lang_command::CONFIG_LEVELS_REDIRECT_CHANNELID), lang->get(lang_command::CONFIG_LEVELS_REDIRECT_CHANNELID_DESC));
                 opt mngr_levl_msgs_blck = opt(opt_t::co_boolean,lang->get(lang_command::CONFIG_LEVELS_MESSAGES_BLOCK), lang->get(lang_command::CONFIG_LEVELS_MESSAGES_BLOCK_DESC), true);
 
+                opt mngr_poll_emoj = opt(opt_t::co_string,      lang->get(lang_command::CONFIG_POLLDEFAULTS_EMOJIS), lang->get(lang_command::CONFIG_POLLDEFAULTS_EMOJIS_DESC));
                 
                 // ----------------------------------------- //
                 // >  LINKING SUBSUBCOMMANDS TO SUBCOMMANDS
@@ -307,6 +316,7 @@ void __apply_commands_at_guild(dpp::cluster& core, const mull guild, dpp::guild*
                 mngr_levl.add_option(mngr_levl_redr);
                 mngr_levl.add_option(mngr_levl_msgs);                
 
+                mngr_poll.add_option(mngr_poll_emoj);
 
 
                 // ----------------------------------------- //
@@ -323,6 +333,7 @@ void __apply_commands_at_guild(dpp::cluster& core, const mull guild, dpp::guild*
                 mngr.add_option(mngr_role);
                 mngr.add_option(mngr_arle);
                 mngr.add_option(mngr_levl);
+                mngr.add_option(mngr_poll);
             }
 
             // EU
@@ -362,11 +373,11 @@ void __apply_commands_at_guild(dpp::cluster& core, const mull guild, dpp::guild*
                 opt poll_colr = opt(opt_t::co_integer,  lang->get(lang_command::POLL_COLOR), lang->get(lang_command::POLL_COLOR_DESC));
 
                 // MODES
-                poll_mode.add_choice(dpp::command_option_choice(lang->get(lang_command::POLL_MODE_OPTION_0_DESC), static_cast<int32_t>(0)));
-                poll_mode.add_choice(dpp::command_option_choice(lang->get(lang_command::POLL_MODE_OPTION_1_DESC), static_cast<int32_t>(1)));
-                poll_mode.add_choice(dpp::command_option_choice(lang->get(lang_command::POLL_MODE_OPTION_2_DESC), static_cast<int32_t>(2)));
-                poll_mode.add_choice(dpp::command_option_choice(lang->get(lang_command::POLL_MODE_OPTION_3_DESC), static_cast<int32_t>(3)));
-                poll_mode.add_choice(dpp::command_option_choice(lang->get(lang_command::POLL_MODE_OPTION_4_DESC), static_cast<int32_t>(4)));
+                poll_mode.add_choice(dpp::command_option_choice(lang->get(lang_command::POLL_MODE_OPTION_0_DESC), static_cast<int64_t>(0)));
+                poll_mode.add_choice(dpp::command_option_choice(lang->get(lang_command::POLL_MODE_OPTION_1_DESC), static_cast<int64_t>(1)));
+                poll_mode.add_choice(dpp::command_option_choice(lang->get(lang_command::POLL_MODE_OPTION_2_DESC), static_cast<int64_t>(2)));
+                poll_mode.add_choice(dpp::command_option_choice(lang->get(lang_command::POLL_MODE_OPTION_3_DESC), static_cast<int64_t>(3)));
+                poll_mode.add_choice(dpp::command_option_choice(lang->get(lang_command::POLL_MODE_OPTION_4_DESC), static_cast<int64_t>(4)));
 
                 poll.add_option(poll_text);
                 poll.add_option(poll_titl);

@@ -42,8 +42,8 @@ unsigned long long ConfigSetting::qgl(const std::string& key)
     return json[key].get<unsigned long long>();
 }
 
-int32_t ConfigSetting::qgi(const std::string& key)
+int64_t ConfigSetting::qgi(const std::string& key)
 {
     std::lock_guard<std::mutex> luck(mu);
-    return json[key].get<int32_t>();
+    return json[key].get<int64_t>();
 }

@@ -35,10 +35,35 @@ int main()
 	std::string commandline;	
 	while(1) { 
 		std::getline(std::cin, commandline);
-		if (commandline == "exit") {
+		
+		if (commandline == "help"){
+			Lunaris::cout << "Commands available:";
+			Lunaris::cout << "> exit | Close and exit safely";
+			Lunaris::cout << "> setstatus <string> | Set bot status string";
+			Lunaris::cout << "> reloadlang | Reload lang file (safe)";
+		}
+		else if (commandline == "exit") {
     		auto safefile = get_lock_file();
 
 			skip_events = true;
+
+			std::this_thread::yield();
+
+			Lunaris::cout << Lunaris::console::color::YELLOW << "Locking new file openings and waiting for no file open..." ;
+
+
+			__user_memory_control.stop(false);
+			__guild_memory_control.stop(false);
+
+			while(safefile.current_amount() > 1 || __user_memory_control.size() > 0 || __guild_memory_control.size() > 0){
+				Lunaris::cout << Lunaris::console::color::YELLOW << "Waiting files to close... (" << safefile.current_amount() << " raw files remaining, " << __user_memory_control.size() << " users in memory, " << __guild_memory_control.size() << " guilds in memory)" ;
+				std::this_thread::sleep_for(std::chrono::seconds(1));
+			}
+
+			Lunaris::cout << Lunaris::console::color::YELLOW << "Cleaning up remaining stuff...";
+
+			__guild_memory_control.stop(true);
+			__user_memory_control.stop(true);
 
 			Lunaris::cout << Lunaris::console::color::YELLOW << "Ending delayed tasks...";
 
@@ -54,9 +79,6 @@ int main()
 			
 			dt.destroy(true); // join()
 
-			__user_memory_control.stop(false);
-			__guild_memory_control.stop(false);
-
 			dt2.destroy(false);
 
 			while(dt2.remaining() > 0) {
@@ -67,19 +89,6 @@ int main()
 			dt2.destroy(true);
 
 			Lunaris::cout << Lunaris::console::color::GREEN << "Ended delayed tasks." ;
-
-			Lunaris::cout << Lunaris::console::color::YELLOW << "Locking new file openings and waiting for no file open..." ;
-
-
-			while(safefile.current_amount() > 1 || __user_memory_control.size() > 0 || __guild_memory_control.size() > 0){
-				Lunaris::cout << Lunaris::console::color::YELLOW << "Waiting files to close... (" << safefile.current_amount() << " raw files remaining, " << __user_memory_control.size() << " users in memory, " << __guild_memory_control.size() << " guilds in memory)" ;
-				std::this_thread::sleep_for(std::chrono::seconds(1));
-			}
-
-			Lunaris::cout << Lunaris::console::color::YELLOW << "Cleaning up remaining stuff...";
-
-			__guild_memory_control.stop(true);
-			__user_memory_control.stop(true);
 
 
 			Lunaris::cout << Lunaris::console::color::GREEN << "Done. Goodbye! (Ignore error below, 5 sec delay)" ;
@@ -101,6 +110,15 @@ int main()
 			}
 			else {
 				Lunaris::cout << "Invalid input." ;
+			}
+		}
+		else if (commandline == "reloadlang") {
+			Lunaris::cout << "Reloading language file...";
+			if (!langctrl.try_reload()){
+				Lunaris::cout << "Could not reload file. Nothing has changed.";
+			}
+			else {
+				Lunaris::cout << "Success reloading languages.";
 			}
 		}
 	} // quick exit

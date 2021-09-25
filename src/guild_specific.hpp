@@ -9,6 +9,7 @@
 
 #include <iostream>
 #include <mutex>
+#include <functional>
 
 #include "tools.hpp"
 #include "secure_control.hpp"
@@ -74,6 +75,7 @@ struct guild_data {
     unsigned last_command_version = 0;
     bool allow_external_paste = true;
     bool temp_flag_no_config = false;
+    std::vector<std::string> default_poll_emojis;
 
     std::vector<std::pair<mull, std::string>> temp_logs;
     dummy_mutex temp_logs_mutex;
@@ -86,7 +88,13 @@ class GuildSelf {
     guild_data data;
     std::string path;
     bool _had_update = false;
+    mutable std::shared_mutex secure;
     dpp::cluster& core;
+
+    std::unique_lock<std::shared_mutex> luck() const;
+    std::shared_lock<std::shared_mutex> luck_shr() const;
+
+    void _sort_role_per_level_nolock();
 public:
     GuildSelf(dpp::cluster&, const std::string&);
     ~GuildSelf();
@@ -101,15 +109,25 @@ public:
     std::string export_json() const;
     bool import_json(const std::string&);
 
-    std::vector<guild_data::category>& get_roles_map();
+    void interface_roles_map(std::function<void(std::vector<guild_data::category>&)>);
+    //std::vector<guild_data::category>& get_roles_map();
     const std::vector<guild_data::category>& get_roles_map() const;
-    std::vector<guild_data::pair_id_level>& get_roles_per_level_map();
+
+    void interface_roles_per_level_map(std::function<void(std::vector<guild_data::pair_id_level>&)>);
+    //std::vector<guild_data::pair_id_level>& get_roles_per_level_map();
     const std::vector<guild_data::pair_id_level>& get_roles_per_level_map() const;
 
-    std::vector<mull>& get_roles_admin();
+    void interface_roles_admin(std::function<void(std::vector<mull>&)>);
+    //std::vector<mull>& get_roles_admin();
     const std::vector<mull>& get_roles_admin() const;
-    std::vector<mull>& get_roles_joined();
+
+    void interface_roles_joined(std::function<void(std::vector<mull>&)>);
+    //std::vector<mull>& get_roles_joined();
     const std::vector<mull>& get_roles_joined() const;
+
+    void interface_default_poll(std::function<void(std::vector<std::string>&)>);
+    //std::vector<std::string>& get_default_poll();
+    const std::vector<std::string>& get_default_poll() const;    
 
     void sort_role_per_level();
 

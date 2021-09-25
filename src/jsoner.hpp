@@ -21,7 +21,7 @@ const mull channel_backup_id  = 889173078813319259;
 const size_t max_message_backup_size = 1800;
 const size_t max_message_file_size = (1024 * 1024 * 8) - 1;
 const std::string file_alt_way = "_alt";
-const std::chrono::seconds tasker_jsoner_time = std::chrono::seconds(6);
+const std::chrono::seconds tasker_jsoner_time = std::chrono::seconds(45);
 
 inline DelayedTasker __flush_to_guild_tasker(tasker_jsoner_time);
 

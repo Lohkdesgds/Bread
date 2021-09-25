@@ -57,6 +57,7 @@ bool save_file(dpp::cluster& core, const nlohmann::json& j, const std::string& p
             if (cfile.is_open() && cfile.good()) {
                 cfile << buf;
                 cfile.flush();
+                Lunaris::cout << Lunaris::console::color::DARK_GREEN << "Saved file @ '" << fullpath << "'!";
                 return true;
             }
             Lunaris::cout << Lunaris::console::color::RED << "Can't save file @ '" << fullpath << "'!";
@@ -78,12 +79,17 @@ bool save_file(dpp::cluster& core, const nlohmann::json& j, const std::string& p
 
             //msg.content = "`" + safename + "_v1`\n```json\n" + tostr.substr(offs, max_message_backup_size) + "```";
             __flush_to_guild_tasker.push_back([msg,&core,safename](){
-                core.message_create(msg, [safename](const dpp::confirmation_callback_t& data){
+                bool got_func_end = false;
+                core.message_create(msg, [safename, &got_func_end](const dpp::confirmation_callback_t& data){
                     if (data.is_error()) {
                         Lunaris::cout << Lunaris::console::color::RED << "Failed to backup a file named '" << safename << "'!";
                         Lunaris::cout << Lunaris::console::color::RED << "Http: " << data.get_error().message;
                     }
+                    got_func_end = true;
                 });
+                for(size_t p = 0; p < 10 && !got_func_end; p++) std::this_thread::sleep_for(std::chrono::milliseconds(400));
+                if (!got_func_end) Lunaris::cout << Lunaris::console::color::RED << "Failed to backup a file named '" << safename << "'! (timeout)";
+                std::this_thread::sleep_for(std::chrono::milliseconds(700));
                 return true;
             });
         }

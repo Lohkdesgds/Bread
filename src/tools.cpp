@@ -38,13 +38,35 @@ std::string get_thread_id_str()
     return ss.str();
 }
 
-int32_t rgb_to_decimal_color(int r, int g, int b)
+int64_t rgb_to_decimal_color(int r, int g, int b)
 {
     r = (r < 0 ? 0 : (r > 255 ? 255 : r));
     g = (g < 0 ? 0 : (g > 255 ? 255 : g));
     b = (b < 0 ? 0 : (b > 255 ? 255 : b));
 
     return b | (g << 8) | (r << 16);
+}
+
+std::vector<std::string> extract_emojis_from(const std::string& src)
+ {
+    std::vector<std::string> emojis;
+    std::stringstream ss(src);
+    std::string token;
+
+    while (std::getline(ss, token, ';')){
+        
+        while(token.length() && (token.front() == ' ' || token.front() == '<' || token.front() == 'a' || token.front() == ':'))
+            token.erase(token.begin());
+        
+        while(token.length() && (token.back() == ' ' || token.back() == '>')) 
+            token.pop_back();
+
+        if (token.size()) {
+            emojis.push_back(token);
+        }
+    }
+
+    return emojis;
 }
 
 //size_t cast_to_switch(const std::string& src, const std::initializer_list<std::string> opts)
@@ -118,11 +140,11 @@ nullable_ref<std::string> get_str_in_command(const dpp::command_interaction& cmd
     return nullptr;
 }
 
-nullable_ref<int32_t> get_int_in_command(const dpp::command_interaction& cmd, const std::string& key)
+nullable_ref<int64_t> get_int_in_command(const dpp::command_interaction& cmd, const std::string& key)
 {
     for(const auto& i : cmd.options){
         if (i.name == key && i.type == dpp::command_option_type::co_integer){
-            return &std::get<int32_t>(i.value);
+            return &std::get<int64_t>(i.value);
         }
     }
     return nullptr;
@@ -168,11 +190,11 @@ nullable_ref<std::string> get_str_in_command(const dpp::command_data_option& cmd
     return nullptr;
 }
 
-nullable_ref<int32_t> get_int_in_command(const dpp::command_data_option& cmd, const std::string& key)
+nullable_ref<int64_t> get_int_in_command(const dpp::command_data_option& cmd, const std::string& key)
 {
     for(const auto& i : cmd.options){
         if (i.name == key && i.type == dpp::command_option_type::co_integer){
-            return &std::get<int32_t>(i.value);
+            return &std::get<int64_t>(i.value);
         }
     }
     return nullptr;
@@ -214,7 +236,7 @@ nullable_ref<std::string>               get_str_in_command(const nullable_ref<dp
     if (a.is_null()) return nullptr;
     return get_str_in_command(*a, b);
 }
-nullable_ref<int32_t>                   get_int_in_command(const nullable_ref<dpp::command_interaction>& a, const std::string& b)
+nullable_ref<int64_t>                   get_int_in_command(const nullable_ref<dpp::command_interaction>& a, const std::string& b)
 {
     if (a.is_null()) return nullptr;
     return get_int_in_command(*a, b);
@@ -239,7 +261,7 @@ nullable_ref<std::string>               get_str_in_command(const nullable_ref<dp
     if (a.is_null()) return nullptr;
     return get_str_in_command(*a, b);
 }
-nullable_ref<int32_t>                   get_int_in_command(const nullable_ref<dpp::command_data_option>& a, const std::string& b)
+nullable_ref<int64_t>                   get_int_in_command(const nullable_ref<dpp::command_data_option>& a, const std::string& b)
 {
     if (a.is_null()) return nullptr;
     return get_int_in_command(*a, b);

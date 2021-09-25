@@ -24,5 +24,5 @@ public:
 
     std::string         qgs(const std::string&);
     unsigned long long  qgl(const std::string&);
-    int32_t             qgi(const std::string&);
+    int64_t             qgi(const std::string&);
 };

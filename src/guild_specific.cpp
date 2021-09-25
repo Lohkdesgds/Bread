@@ -57,6 +57,8 @@ void guild_data::category::from_json(const nlohmann::json& j)
 
 nlohmann::json guild_data::to_json() const
 {
+    if (role_per_level.size() > 0) std::sort(role_per_level.begin(), role_per_level.end(), [](const guild_data::pair_id_level& a,const guild_data::pair_id_level& b){return a.level < b.level;});
+
     nlohmann::json j;
     j["last_user_earn_points"] = last_user_earn_points;
     j["last_command_version"] = last_command_version;
@@ -69,9 +71,9 @@ nlohmann::json guild_data::to_json() const
     for(const auto& _field : roles_available) j["roles_available"].push_back(_field.to_json());
     for(const auto& _field : roles_considered_admin) j["roles_considered_admin"].push_back(_field);
     for(const auto& _field : roles_when_join) j["roles_when_join"].push_back(_field);
-    if (role_per_level.size() > 0) std::sort(role_per_level.begin(), role_per_level.end(), [](const guild_data::pair_id_level& a,const guild_data::pair_id_level& b){return a.level < b.level;});
     for(const auto& _field : role_per_level) j["role_per_level"].push_back(_field.to_json());
     for(const auto& _field : temp_logs) j["temp_logs"].push_back(_field);
+    for(const auto& _field : default_poll_emojis) j["default_poll_emojis"].push_back(_field);
     return j;
 }
 
@@ -91,6 +93,23 @@ void guild_data::from_json(const nlohmann::json& j)
     safe_json_array(j, "roles_when_join", roles_when_join, false);
     safe_json_array(j, "role_per_level", role_per_level, false);
     safe_json_array(j, "temp_logs", temp_logs, false);
+    safe_json_array(j, "default_poll_emojis", default_poll_emojis, false);
+}
+
+std::unique_lock<std::shared_mutex> GuildSelf::luck() const
+{
+    return std::unique_lock<std::shared_mutex>(secure);
+}
+
+std::shared_lock<std::shared_mutex> GuildSelf::luck_shr() const
+{
+    return std::shared_lock<std::shared_mutex>(secure);
+}
+
+void GuildSelf::_sort_role_per_level_nolock()
+{
+    if (data.role_per_level.size() > 0)
+        std::sort(data.role_per_level.begin(), data.role_per_level.end(), [](const guild_data::pair_id_level& a,const guild_data::pair_id_level& b){return a.level < b.level;});
 }
 
 GuildSelf::GuildSelf(dpp::cluster& cor, const std::string& p)
@@ -99,32 +118,6 @@ GuildSelf::GuildSelf(dpp::cluster& cor, const std::string& p)
     nlohmann::json j = get_from_file(guild_config_path_default, path, ".json");
     if (j.is_discarded() || j.empty()) return;
     data.from_json(j);
-//    auto safefile = get_lock_file();
-//    try{
-//        nlohmann::json j;
-//        std::ifstream cfile(path);
-//        if (!cfile.good()) return;
-//        std::stringstream buffer;
-//        buffer << cfile.rdbuf();
-//        j = nlohmann::json::parse(buffer.str(), nullptr, false);
-//        if (!j.empty() && !j.is_discarded())
-//        {
-//            data.from_json(j);
-//            //Lunaris::cout << Lunaris::console::color::DARK_GRAY << "[GuildSelf] Loaded #" << p;
-//        }
-//        else {
-//            Lunaris::cout << Lunaris::console::color::GOLD << "[WARN] GuildSelf: File was empty. Assuming corrupted or new file.";
-//            post_log("[LOAD] File was empty or corrupted. Generated a new one. Sorry if any reset (please report)");
-//        }
-//    }
-//    catch(const std::exception& e) {
-//        Lunaris::cout << Lunaris::console::color::DARK_RED << "[ERROR] GuildSelf: couldn't load guild data: " << e.what() << ". Assuming corrupted file.";
-//        post_log("[LOAD] Failed to load. Corrupted? I'm sorry. INFO: " + std::string(e.what()));
-//    }
-//    catch(...) {
-//        Lunaris::cout << Lunaris::console::color::DARK_RED << "[ERROR] GuildSelf: couldn't load guild data. Assuming corrupted file.";
-//        post_log("[LOAD] Failed to load. Corrupted? I'm sorry.");
-//    }
 }
 
 GuildSelf::~GuildSelf()
@@ -135,12 +128,17 @@ GuildSelf::~GuildSelf()
 GuildSelf::GuildSelf(GuildSelf&& oth) noexcept
     : data(oth.data), path(oth.path), _had_update(oth._had_update), core(oth.core)
 {
+    auto l2 = oth.luck();
+
     oth.path.clear();
     oth._had_update = false;
 }
 
 void GuildSelf::operator=(GuildSelf&& oth) noexcept
 {
+    auto l1 = luck();
+    auto l2 = oth.luck();
+
     data = std::move(oth.data);
     path = std::move(oth.path);
     _had_update = oth._had_update;
@@ -150,6 +148,8 @@ void GuildSelf::operator=(GuildSelf&& oth) noexcept
 
 bool GuildSelf::save()
 {
+    auto l1 = luck();
+
     if (path.empty()) return false;
     const auto mj = data.to_json();
     if (!save_file(core, mj, guild_config_path_default, path, ".json")) {
@@ -157,29 +157,17 @@ bool GuildSelf::save()
     }
     else _had_update = false;
     return true;
-
-//    if (path.empty()) return false;
-//    const nlohmann::json& result = data.to_json();
-//    if (result.empty()) return false;
-//    auto safefile = get_lock_file();
-//    std::ofstream cfile(path);
-//    if (cfile.good()) {
-//        cfile << data.to_json();
-//        cfile.flush();
-//        _had_update = false;
-//        //Lunaris::cout << Lunaris::console::color::DARK_GRAY << "[GuildSelf] Flush #" << path;
-//        return true;
-//    }
-//    return false;
 }
 
 std::string GuildSelf::export_json() const
 {
+    auto l1 = luck_shr();
     return data.to_json().dump(1);
 }
 
 bool GuildSelf::import_json(const std::string& str)
 {
+    auto l1 = luck();
     nlohmann::json j = nlohmann::json::parse(str, nullptr, false);
     if (!j.empty() && !j.is_discarded()) {
         data.from_json(j);
@@ -188,58 +176,120 @@ bool GuildSelf::import_json(const std::string& str)
     return false;
 }
 
-std::vector<guild_data::category>& GuildSelf::get_roles_map()
+//std::vector<guild_data::category>& GuildSelf::get_roles_map()
+//{
+//    _had_update = true;
+//    return data.roles_available;
+//}
+
+void GuildSelf::interface_roles_map(std::function<void(std::vector<guild_data::category>&)> f)
 {
-    _had_update = true;
-    return data.roles_available;
+    if (f){
+        auto l1 = luck();
+        _had_update = true;
+        f(data.roles_available);
+    }
 }
 
 const std::vector<guild_data::category>& GuildSelf::get_roles_map() const
 {
+    auto l1 = luck_shr();
     return data.roles_available;
 }
 
-std::vector<guild_data::pair_id_level>& GuildSelf::get_roles_per_level_map()
+//std::vector<guild_data::pair_id_level>& GuildSelf::get_roles_per_level_map()
+//{
+//    _had_update = true;
+//    return data.role_per_level;
+//}
+
+void GuildSelf::interface_roles_per_level_map(std::function<void(std::vector<guild_data::pair_id_level>&)> f)
 {
-    _had_update = true;
-    return data.role_per_level;
+    if (f){
+        auto l1 = luck();
+        _had_update = true;
+        f(data.role_per_level);
+    }
 }
 
 const std::vector<guild_data::pair_id_level>& GuildSelf::get_roles_per_level_map() const
 {
+    auto l1 = luck_shr();
     return data.role_per_level;
 }
 
-std::vector<mull>& GuildSelf::get_roles_admin()
+//std::vector<mull>& GuildSelf::get_roles_admin()
+//{
+//    _had_update = true;
+//    return data.roles_considered_admin;
+//}
+
+void GuildSelf::interface_roles_admin(std::function<void(std::vector<mull>&)> f)
 {
-    _had_update = true;
-    return data.roles_considered_admin;
+    if (f){
+        auto l1 = luck();
+        _had_update = true;
+        f(data.roles_considered_admin);
+    }
 }
 
 const std::vector<mull>& GuildSelf::get_roles_admin() const
 {
+    auto l1 = luck_shr();
     return data.roles_considered_admin;
 }
 
-std::vector<mull>& GuildSelf::get_roles_joined()
+//std::vector<mull>& GuildSelf::get_roles_joined()
+//{
+//    _had_update = true;
+//    return data.roles_when_join;
+//}
+
+void GuildSelf::interface_roles_joined(std::function<void(std::vector<mull>&)> f)
 {
-    _had_update = true;
-    return data.roles_when_join;
+    if (f){
+        auto l1 = luck();
+        _had_update = true;
+        f(data.roles_when_join);
+    }
 }
 
 const std::vector<mull>& GuildSelf::get_roles_joined() const
 {
+    auto l1 = luck_shr();
     return data.roles_when_join;
+}
+
+//std::vector<std::string>& GuildSelf::get_default_poll()
+//{
+//    _had_update = true;
+//    return data.default_poll_emojis;
+//}
+
+void GuildSelf::interface_default_poll(std::function<void(std::vector<std::string>&)> f)
+{
+    if (f){
+        auto l1 = luck();
+        _had_update = true;
+        f(data.default_poll_emojis);
+    }
+}
+
+const std::vector<std::string>& GuildSelf::get_default_poll() const
+{
+    auto l1 = luck_shr();
+    return data.default_poll_emojis;
 }
 
 void GuildSelf::sort_role_per_level()
 {
-    if (data.role_per_level.size() > 0)
-        std::sort(data.role_per_level.begin(), data.role_per_level.end(), [](const guild_data::pair_id_level& a,const guild_data::pair_id_level& b){return a.level < b.level;});
+    auto l1 = luck();
+    _sort_role_per_level_nolock();
 }
 
 void GuildSelf::remove_role_admin(const mull var)
 {
+    auto l1 = luck();
     if (auto it = std::find(data.roles_considered_admin.begin(), data.roles_considered_admin.end(), var); it != data.roles_considered_admin.end()){
         data.roles_considered_admin.erase(it);
         _had_update = true;
@@ -248,6 +298,7 @@ void GuildSelf::remove_role_admin(const mull var)
 
 void GuildSelf::add_role_admin(const mull var)
 {
+    auto l1 = luck();
     if (auto it = std::find(data.roles_considered_admin.begin(), data.roles_considered_admin.end(), var); it == data.roles_considered_admin.end()){
         data.roles_considered_admin.push_back(var);
         _had_update = true;
@@ -256,11 +307,13 @@ void GuildSelf::add_role_admin(const mull var)
 
 bool GuildSelf::check_role_admin(const mull var) const
 {
+    auto l1 = luck_shr();
     return std::find(data.roles_considered_admin.begin(), data.roles_considered_admin.end(), var) != data.roles_considered_admin.end();
 }
 
 void GuildSelf::remove_role_joined(const mull var)
 {
+    auto l1 = luck();
     if (auto it = std::find(data.roles_when_join.begin(), data.roles_when_join.end(), var); it != data.roles_when_join.end()){
         data.roles_when_join.erase(it);
         _had_update = true;
@@ -269,6 +322,7 @@ void GuildSelf::remove_role_joined(const mull var)
 
 void GuildSelf::add_role_joined(const mull var)
 {
+    auto l1 = luck();
     if (auto it = std::find(data.roles_when_join.begin(), data.roles_when_join.end(), var); it == data.roles_when_join.end()){
         data.roles_when_join.push_back(var);
         _had_update = true;
@@ -277,57 +331,66 @@ void GuildSelf::add_role_joined(const mull var)
 
 bool GuildSelf::check_role_joined(const mull var) const
 {
+    auto l1 = luck_shr();
     return std::find(data.roles_when_join.begin(), data.roles_when_join.end(), var) != data.roles_when_join.end();
 }
 
 void GuildSelf::remove_role_level_map(const mull id)
 {
+    auto l1 = luck();
     if (auto it = std::find_if(data.role_per_level.begin(), data.role_per_level.end(), [&](const guild_data::pair_id_level& a){return a.id == id;}); it != data.role_per_level.end()){
         data.role_per_level.erase(it);
-        sort_role_per_level();
+        _sort_role_per_level_nolock();
         _had_update = true;
     }
 }
 
 void GuildSelf::add_role_level_map(const guild_data::pair_id_level par)
 {
+    auto l1 = luck();
     if (auto it = std::find_if(data.role_per_level.begin(), data.role_per_level.end(), [&](const guild_data::pair_id_level& a){return a.level == par.level;}); it != data.role_per_level.end()){
         it->id = par.id;
     }
     else data.role_per_level.push_back(par);
-    sort_role_per_level();
+    _sort_role_per_level_nolock();
     _had_update = true;
 }
 
 bool GuildSelf::is_message_level_blocked() const
 {
+    auto l1 = luck_shr();
     return data.block_levelup_user_event;
 }
 
 void GuildSelf::set_message_level_blocked(const bool var)
 {
+    auto l1 = luck();
     data.block_levelup_user_event = var;
     _had_update = true;
 }
 
 bool GuildSelf::is_earning_points_time() const
 {
+    auto l1 = luck_shr();
     return get_time_ms() > data.last_user_earn_points;
 }
 
 void GuildSelf::set_earned_points()
 {
+    auto l1 = luck();
     data.last_user_earn_points = get_time_ms() + time_to_earn_points_diffuser_ms;
     _had_update = true;
 }
 
 const std::string& GuildSelf::get_language() const
 {
+    auto l1 = luck_shr();
     return data.language;
 }
 
 void GuildSelf::set_language(const std::string& var)
 {
+    auto l1 = luck();
     data.language = var;
     _had_update = true;
 }
@@ -353,55 +416,65 @@ std::string GuildSelf::get_log(const size_t index) const
 
 size_t GuildSelf::get_log_size() const
 {
+    auto l1 = luck_shr();
     return data.temp_logs.size();
 }
 
 mull GuildSelf::get_level_channel_id() const
 {
+    auto l1 = luck_shr();
     return data.fallback_levelup_message_channel;
 }
 
 void GuildSelf::set_level_channel_id(const mull var)
 {
+    auto l1 = luck();
     data.fallback_levelup_message_channel = var;
     _had_update = true;
 }
 
 unsigned GuildSelf::get_current_command_version() const
 {
+    auto l1 = luck_shr();
     return data.last_command_version;
 }
 
 void GuildSelf::set_current_command_version(const unsigned var)
 {
+    auto l1 = luck();
     data.last_command_version = var;
     _had_update = true;
 }
 
 bool GuildSelf::get_can_paste_external_content() const
 {
+    auto l1 = luck_shr();
     return data.allow_external_paste;
 }
 
 void GuildSelf::set_can_paste_external_content(const bool var)
 {
+    auto l1 = luck();
     data.allow_external_paste = var;
     _had_update = true;
 }
 
 void GuildSelf::set_guild_deleted(const bool var)
 {
+    auto l1 = luck();
     data.guild_was_deleted = var;
     _had_update = true;
 }
 
 bool GuildSelf::is_config_locked() const
 {
+    auto l1 = luck_shr();
     return data.temp_flag_no_config;
 }
 
 void GuildSelf::set_config_locked(const bool var)
 {
+    auto l1 = luck();
     data.temp_flag_no_config = var;
     _had_update = true;
 }
@@ -412,8 +485,3 @@ ComplexSharedPtr<GuildSelf> get_guild_config(const mull uuid)
     auto shr = __guild_memory_control.get(uuid);
     return shr;
 }
-
-/*void delete_guild_config(const mull uuid)
-{
-    std::remove((guild_config_path_default + std::to_string(uuid) + ".json").c_str());
-}*/

@@ -112,7 +112,10 @@ public:
 mull get_time_ms();
 std::string fix_name_for_cmd(std::string);
 std::string get_thread_id_str();
-int32_t rgb_to_decimal_color(int, int, int);
+int64_t rgb_to_decimal_color(int, int, int);
+
+// expected: "list ; of ; emojis"
+std::vector<std::string> extract_emojis_from(const std::string&);
 
 //size_t cast_to_switch(const std::string&, const std::initializer_list<std::string>);
 //size_t cast_to_switch(const nullable_ref<std::string>&, const std::initializer_list<std::string>);
@@ -128,25 +131,25 @@ nullable_ref<std::string>               get_first_name(const nullable_ref<dpp::c
 nullable_ref<dpp::command_data_option>  get_first_option(const nullable_ref<dpp::command_data_option>&);
 
 nullable_ref<std::string>               get_str_in_command(const dpp::command_interaction&, const std::string&);
-nullable_ref<int32_t>                   get_int_in_command(const dpp::command_interaction&, const std::string&);
+nullable_ref<int64_t>                   get_int_in_command(const dpp::command_interaction&, const std::string&);
 nullable_ref<bool>                      get_bool_in_command(const dpp::command_interaction&, const std::string&);
 nullable_ref<dpp::snowflake>            get_mull_in_command(const dpp::command_interaction&, const std::string&);
 nullable_ref<dpp::command_data_option>  get_cmd_in_command(const dpp::command_interaction&, const std::string&);
 
 nullable_ref<std::string>               get_str_in_command(const dpp::command_data_option&, const std::string&);
-nullable_ref<int32_t>                   get_int_in_command(const dpp::command_data_option&, const std::string&);
+nullable_ref<int64_t>                   get_int_in_command(const dpp::command_data_option&, const std::string&);
 nullable_ref<bool>                      get_bool_in_command(const dpp::command_data_option&, const std::string&);
 nullable_ref<dpp::snowflake>            get_mull_in_command(const dpp::command_data_option&, const std::string&);
 nullable_ref<dpp::command_data_option>  get_cmd_in_command(const dpp::command_data_option&, const std::string&);
 
 nullable_ref<std::string>               get_str_in_command(const nullable_ref<dpp::command_interaction>&, const std::string&);
-nullable_ref<int32_t>                   get_int_in_command(const nullable_ref<dpp::command_interaction>&, const std::string&);
+nullable_ref<int64_t>                   get_int_in_command(const nullable_ref<dpp::command_interaction>&, const std::string&);
 nullable_ref<bool>                      get_bool_in_command(const nullable_ref<dpp::command_interaction>&, const std::string&);
 nullable_ref<dpp::snowflake>            get_mull_in_command(const nullable_ref<dpp::command_interaction>&, const std::string&);
 nullable_ref<dpp::command_data_option>  get_cmd_in_command(const nullable_ref<dpp::command_interaction>&, const std::string&);
 
 nullable_ref<std::string>               get_str_in_command(const nullable_ref<dpp::command_data_option>&, const std::string&);
-nullable_ref<int32_t>                   get_int_in_command(const nullable_ref<dpp::command_data_option>&, const std::string&);
+nullable_ref<int64_t>                   get_int_in_command(const nullable_ref<dpp::command_data_option>&, const std::string&);
 nullable_ref<bool>                      get_bool_in_command(const nullable_ref<dpp::command_data_option>&, const std::string&);
 nullable_ref<dpp::snowflake>            get_mull_in_command(const nullable_ref<dpp::command_data_option>&, const std::string&);
 nullable_ref<dpp::command_data_option>  get_cmd_in_command(const nullable_ref<dpp::command_data_option>&, const std::string&);

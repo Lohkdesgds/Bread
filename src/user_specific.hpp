@@ -9,6 +9,7 @@
 
 #include <iostream>
 #include <mutex>
+#include <functional>
 
 #include "tools.hpp"
 #include "secure_control.hpp"
@@ -41,7 +42,7 @@ struct user_data {
     mull attachments_sent = 0;
     std::unordered_map<mull, mull> attachments_sent_per_guild; // [guild] = atts
     mull commands_used = 0;
-    int32_t pref_color = -1;
+    int64_t pref_color = -1;
     mull times_they_got_positive_points = 0;
     mull times_they_got_negative_points = 0;
 
@@ -69,7 +70,11 @@ class UserSelf {
     user_data data;
     std::string path;
     bool _had_update = false;
+    mutable std::shared_mutex secure;
     dpp::cluster& core;
+
+    std::unique_lock<std::shared_mutex> luck() const;
+    std::shared_lock<std::shared_mutex> luck_shr() const;
 public:
     UserSelf(dpp::cluster&, const std::string&);
     ~UserSelf();
@@ -87,8 +92,8 @@ public:
     mull get_points_at_guild(const mull) const;
     bool get_show_level_up() const;
 
-    int32_t get_user_color() const;
-    void set_user_color(const int32_t);
+    int64_t get_user_color() const;
+    void set_user_color(const int64_t);
 
     mull get_times_points_positive() const;
     mull get_times_points_negative() const;

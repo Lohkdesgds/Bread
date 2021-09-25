@@ -72,6 +72,7 @@ void __handle_command_poll(dpp::cluster& core, const dpp::interaction_create_t& 
     src.reply(dpp::interaction_response_type::ir_deferred_channel_message_with_source, replying);
 
     const auto uconf = get_user_config(src.command.usr.id);
+    auto gconf = get_guild_config(src.command.guild_id);
 
     auto text_raw = get_str_in_command(cmd, lang->get(lang_command::POLL_TEXT));
     auto title_raw = get_str_in_command(cmd, lang->get(lang_command::POLL_TITLE));
@@ -83,48 +84,13 @@ void __handle_command_poll(dpp::cluster& core, const dpp::interaction_create_t& 
     std::vector<std::string> emojis;
     std::string text;
     const std::string title = title_raw.is_null() ? ("**" + lang->get(lang_line::COMMAND_POLL_FINAL_TITLE_NAME) + "**") : ("**" + *title_raw + "**");
-    const int32_t color = colr.is_null() ? uconf->get_user_color() : ((*colr) % 0xFFFFFF);
+    const int64_t color = colr.is_null() ? uconf->get_user_color() : ((*colr) % 0xFFFFFF);
 
     if (!emojis_raw.is_null()){
-        std::stringstream ss(*emojis_raw);
-        std::string token;
-        while (std::getline(ss, token, ';')){
-            
-            while(token.length() && (token.front() == ' ' || token.front() == '<' || token.front() == 'a' || token.front() == ':'))
-                token.erase(token.begin());
-            
-            while(token.length() && (token.back() == ' ' || token.back() == '>')) 
-                token.pop_back();
-
-            if (token.size()) {
-                emojis.push_back(token);
-            }
-        }
+        emojis = extract_emojis_from(*emojis_raw);
     }
-
-    text = *text_raw;
-    for(size_t p = 0; p != std::string::npos;)
-    {
-        if ((p = text.find("\\n")) != std::string::npos){
-            text.erase(p, 2);
-            text.insert(p, "\n");
-        }
-    }
-
-    dpp::embed poll_enq;
-    dpp::embed_author author;
-    author.name = src.command.usr.username + "#" + std::to_string(src.command.usr.discriminator);
-    author.icon_url = src.command.usr.get_avatar_url() + "?size=256";
-
-    poll_enq.set_author(author);
-    poll_enq.set_title(title);
-    poll_enq.set_description(text);
-    poll_enq.set_color(color);
-    poll_enq.set_thumbnail(poll_image_url);
-
-    if (!link.is_null()) poll_enq.set_image(*link);
-    if (emojis.size() == 0){
-        switch(mode.is_null() ? 0 : *mode){
+    else if (!mode.is_null()) {
+        switch(*mode){
         case 0: // ^ v
         {
             emojis.push_back(u8"🔺");
@@ -163,14 +129,44 @@ void __handle_command_poll(dpp::cluster& core, const dpp::interaction_create_t& 
             break;
         }
     }
+    else if (gconf->get_default_poll().size() > 0) { // none set, but guild has default
+        for(const auto& eac : gconf->get_default_poll()) {
+            emojis.push_back(eac);
+        }
+    }
+    else { // defaults to this
+        emojis.push_back(u8"🔺");
+        emojis.push_back(u8"🔻");
+    }
+
+    text = *text_raw;
+    for(size_t p = 0; p != std::string::npos;)
+    {
+        if ((p = text.find("\\n")) != std::string::npos){
+            text.erase(p, 2);
+            text.insert(p, "\n");
+        }
+    }
+
+    dpp::embed poll_enq;
+    dpp::embed_author author;
+    author.name = src.command.usr.username + "#" + std::to_string(src.command.usr.discriminator);
+    author.icon_url = src.command.usr.get_avatar_url() + "?size=256";
+
+    poll_enq.set_author(author);
+    poll_enq.set_title(title);
+    poll_enq.set_description(text);
+    poll_enq.set_color(color);
+    poll_enq.set_thumbnail(poll_image_url);
+
+    if (!link.is_null()) poll_enq.set_image(*link);
+
 
     replying.add_embed(poll_enq);
 
     src.edit_response(replying);
 
     if (emojis.size()) {
-
-        auto gconf = get_guild_config(src.command.guild_id);
 
         src.get_original_response([&core, emojis, gconf](const dpp::confirmation_callback_t& data) {
             if (data.is_error()) {
