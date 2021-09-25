@@ -47,8 +47,8 @@ void __apply_commands_at_guild(dpp::cluster& core, const mull guild, dpp::guild*
             return;
         };
 
-        // CLEANING UP INVALID STUFF
-        {
+        // CLEANING UP INVALID STUFF // it is broken I don't know why. It doesn't change much
+        /*{
             // CLEANUP ADMIN ROLES NOT EXISTENT 
             for(const auto& i : gconf->get_roles_admin())
             {
@@ -104,7 +104,7 @@ void __apply_commands_at_guild(dpp::cluster& core, const mull guild, dpp::guild*
                 }
 
             });
-        }
+        }*/
 
         {
             self.set_name(lang->get(lang_command::SELFCONF));

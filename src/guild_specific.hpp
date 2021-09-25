@@ -18,7 +18,7 @@
 #include "bot_reference_so_bad.hpp"
 #include "tools.hpp"
 #include "memory_reference_manager.hpp"
-#include "jsoner.hpp"
+#include "backuper.hpp"
 
 const std::string guild_config_path_default = "./guilds/";
 constexpr mull time_to_earn_points_diffuser_ms = 45 * 1000;
@@ -164,6 +164,7 @@ public:
     bool get_can_paste_external_content() const;
     void set_can_paste_external_content(const bool);
 
+    bool is_guild_deleted() const;
     void set_guild_deleted(const bool);
 
     bool is_config_locked() const;

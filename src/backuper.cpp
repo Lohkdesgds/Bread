@@ -1,4 +1,4 @@
-#include "jsoner.hpp"
+#include "backuper.hpp"
 
 nlohmann::json get_from_file(const std::string& path, const std::string& name, const std::string& extension)
 {
@@ -105,6 +105,33 @@ bool save_file(dpp::cluster& core, const nlohmann::json& j, const std::string& p
         Lunaris::cout << Lunaris::console::color::DARK_RED << "[ERROR] Couldn't save data from '" << name << ".";
     }
     return false;
+}
+
+void log_joined_new_guild(dpp::cluster& core, const dpp::guild_create_t& ev)
+{
+    dpp::message msg;
+    msg.guild_id = guild_backup_id;
+    msg.channel_id = channel_logging_jl;
+    msg.content = "✅ Joined guild `" + ev.created->name + "`";//  #" + std::to_string(ev.created->id);
+    core.message_create(msg);
+}
+
+void log_updated_guild(dpp::cluster& core, const dpp::guild_create_t& ev)
+{
+    dpp::message msg;
+    msg.guild_id = guild_backup_id;
+    msg.channel_id = channel_logging_jl;
+    msg.content = "🔄 Updated guild `" + ev.created->name + "`";//  #" + std::to_string(ev.created->id);
+    core.message_create(msg);
+}
+
+void log_left_a_guild(dpp::cluster& core, const dpp::guild_delete_t& ev)
+{
+    dpp::message msg;
+    msg.guild_id = guild_backup_id;
+    msg.channel_id = channel_logging_jl;
+    msg.content = "❌ Left guild `" + ev.deleted->name + "`";//  #" + std::to_string(ev.deleted->id);
+    core.message_create(msg);
 }
 
 DelayedTasker& get_file_tasker()

@@ -145,20 +145,30 @@ void _hook_ev_guild_create(dpp::cluster& core, ConfigSetting& conf, const dpp::g
 {
     auto gconf = get_guild_config(ev.created->id);
     gconf->set_config_locked(false); // new guilds must not be locked
+    bool was_deleted_before = gconf->is_guild_deleted();
     gconf->set_guild_deleted(false);
     
     if (gconf->get_language().empty()){
         gconf->set_language(language_based_on_location(*ev.created));
         __apply_commands_at_guild(core, ev.created->id, ev.created);
-        Lunaris::cout << "Joined new guild '" << ev.created->name << "' (#" << std::to_string(ev.created->id) << ")" ;
+        Lunaris::cout << "Joined new guild '" << ev.created->name << "' (#" << std::to_string(ev.created->id) << ")";
+        log_joined_new_guild(core, ev);
     }
     else if (gconf->get_current_command_version() < commands_version_val){
         gconf->set_current_command_version(commands_version_val);
         gconf->save(); // force this time
         __apply_commands_at_guild(core, ev.created->id, ev.created);
-        Lunaris::cout << "Joined and updated guild '" << ev.created->name << "' (#" << std::to_string(ev.created->id) << ")" ;
+        Lunaris::cout << "Joined and updated guild '" << ev.created->name << "' (#" << std::to_string(ev.created->id) << ")";
+        log_updated_guild(core, ev);
     }
-    else Lunaris::cout << "Connected to guild '" << ev.created->name << "' (#" << std::to_string(ev.created->id) << ")" ;    
+    else if (was_deleted_before) { // if no updates, but rejoin, reapply
+        __apply_commands_at_guild(core, ev.created->id, ev.created);
+        Lunaris::cout << "Joined once deleted guild '" << ev.created->name << "' (#" << std::to_string(ev.created->id) << ")";
+        log_updated_guild(core, ev);
+    }
+    else {
+        Lunaris::cout << "Connected to guild '" << ev.created->name << "' (#" << std::to_string(ev.created->id) << ")";
+    }
 }
 
 void _hook_ev_guild_delete(dpp::cluster& core, ConfigSetting& conf, const dpp::guild_delete_t& ev)
@@ -169,6 +179,7 @@ void _hook_ev_guild_delete(dpp::cluster& core, ConfigSetting& conf, const dpp::g
         auto gconf = get_guild_config(ev.deleted->id);
         gconf->set_guild_deleted(true);
 
+        log_left_a_guild(core, ev);
         //delete_guild_config(ev.deleted->id);
     }
 }

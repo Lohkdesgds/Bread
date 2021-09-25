@@ -459,6 +459,12 @@ void GuildSelf::set_can_paste_external_content(const bool var)
     _had_update = true;
 }
 
+bool GuildSelf::is_guild_deleted() const
+{
+    auto l1 = luck_shr();
+    return data.guild_was_deleted;
+}
+
 void GuildSelf::set_guild_deleted(const bool var)
 {
     auto l1 = luck();

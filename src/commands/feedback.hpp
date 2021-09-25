@@ -10,7 +10,7 @@
 #include "../tools.hpp"
 #include "../language.hpp"
 
-const mull guild_feedback_id   = 739198747069644921;
-const mull channel_feedback_id = 889264164936220764;
+const mull guild_feedback_id   = 847342829285933057;//739198747069644921;
+const mull channel_feedback_id = 891437189437726760;//889264164936220764;
 
 void __handle_command_feedback(dpp::cluster&, const dpp::interaction_create_t&, dpp::command_interaction&, std::shared_ptr<EachLang>);
