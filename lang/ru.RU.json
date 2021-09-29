@@ -218,7 +218,7 @@
         ["CONFIG_LEVELS_REMOVE", "удалить"],
         ["CONFIG_LEVELS_REMOVE_DESC", "Удалить правило для роли при достижении определенного уровня"],
         ["CONFIG_LEVELS_REDIRECT", "перенаправлять"],
-        ["CONFIG_LEVELS_REDIRECT_DESC", "Перенаправлять все сообщения о повышении уровня в канал? (если 'канал' не задан, возвращается к настройкам по умолчанию)"],
+        ["CONFIG_LEVELS_REDIRECT_DESC", "Перенаправлять все сообщения о повышении уровня? (по умолчанию канал не задан)"],
         ["CONFIG_LEVELS_REDIRECT_CHANNELID", "канал"],
         ["CONFIG_LEVELS_REDIRECT_CHANNELID_DESC", "Канал с сообщениями о повышении уровня"],
         ["CONFIG_LEVELS_MESSAGES", "сообщения"],
