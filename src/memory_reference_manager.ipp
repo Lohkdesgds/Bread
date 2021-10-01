@@ -73,6 +73,12 @@ const T& ComplexSharedPtr<T>::operator*() const
 }
 
 template<typename T>
+T& ComplexSharedPtr<T>::get_reference_edit()
+{
+    return *(ptr.get() ? ptr->get() : nullptr);
+}
+
+template<typename T>
 ComplexSharedPtr<T>::operator bool() const
 {
     return ptr.get() != nullptr && ptr->get() != nullptr;
@@ -116,9 +122,18 @@ inline void MemoryReferenceManager<T>::keep_flush()
                 if (it->second.when_ms < time_here_now && it->second.ref.use_count() <= 1){
                     //const auto __ref_tmp = it->first;
                     //Lunaris::cout << "[MemoryReferenceManager] Clearing " << __ref_tmp << " from memory...";
+                    Lunaris::cout << Lunaris::console::color::DARK_AQUA << "Auto-clear (unload) timeout triggered for '" << it->first << "'.";
                     it = umap.erase(it);
                     //Lunaris::cout << "[MemoryReferenceManager] Cleared " << __ref_tmp << " from memory.";
                     if (++cleared_amount > memory_reference_flush_max_overload_control) break;
+                }
+                else if (it->second.last_flush < time_here_now) {
+                    Lunaris::cout << Lunaris::console::color::DARK_AQUA << "Auto-flush (save) timeout triggered for '" << it->first << "'.";
+
+                    if (save_func) save_func(it->second.ref.get_reference_edit());
+                    else Lunaris::cout << Lunaris::console::color::GOLD << "Save function was invalid somehow. Please fix.";
+
+                    it->second.last_flush = time_here_now + time_flush_always;
                 }
                 else ++it;
             }
@@ -202,8 +217,8 @@ std::string MemoryReferenceManager<T>::genid() const
 }
 
 template<typename T>
-inline MemoryReferenceManager<T>::MemoryReferenceManager(const std::function<T(const mull&)> gen, const std::string& newname)
-    : generator(gen), nameit(newname)
+inline MemoryReferenceManager<T>::MemoryReferenceManager(const std::function<T(const mull&)> gen, const std::function<void(T&)> sav, const std::string& newname)
+    : generator(gen), save_func(sav), nameit(newname)
 {
     is_running = false;
     keep_working = true;
@@ -246,6 +261,7 @@ inline ComplexSharedPtr<T> MemoryReferenceManager<T>::get(const mull id)
     auto& shr = umap[id];
     shr.ref = make_complex_ptr<T>(generator(id));
     shr.when_ms = get_time_ms() + min_living_time;
+    shr.last_flush = get_time_ms() + time_flush_always;
     //Lunaris::cout << "[MemoryReferenceManager] Generated new " << id << "." ;
     return shr.ref;
 }

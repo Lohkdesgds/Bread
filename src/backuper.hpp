@@ -22,7 +22,7 @@ const mull channel_logging_jl = 891424429857468517; // log join and leave channe
 const size_t max_message_backup_size = 1800;
 const size_t max_message_file_size = (1024 * 1024 * 8) - 1;
 const std::string file_alt_way = "_alt";
-const std::chrono::seconds tasker_jsoner_time = std::chrono::seconds(45);
+const std::chrono::seconds tasker_jsoner_time = std::chrono::seconds(60);
 
 inline DelayedTasker __flush_to_guild_tasker(tasker_jsoner_time);
 

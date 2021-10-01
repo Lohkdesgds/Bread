@@ -122,6 +122,9 @@ public:
     void reset_clipboard();
 };
 
-inline MemoryReferenceManager<UserSelf> __user_memory_control([](const mull id){return UserSelf{*__global_cluster_sad_times, std::to_string(id)};}, "UserSelf");
+inline MemoryReferenceManager<UserSelf> __user_memory_control(
+    [](const mull id){return UserSelf{*__global_cluster_sad_times, std::to_string(id)};},
+    [](UserSelf& us){ us.save(); },
+    "UserSelf");
 
 ComplexSharedPtr<UserSelf> get_user_config(const mull);

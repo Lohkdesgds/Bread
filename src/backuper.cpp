@@ -24,7 +24,7 @@ nlohmann::json get_from_file(const std::string& path, const std::string& name, c
         
         if (!do_it(path + safename + extension, j)){
             if (!do_it(path + safename + file_alt_way + extension, j)){
-                Lunaris::cout << Lunaris::console::color::GOLD << "[WARN] Files (main and alt) were empty. Assuming new file.";
+                //Lunaris::cout << Lunaris::console::color::GOLD << "[WARN] Files (main and alt) were empty. Assuming new file for '" << safename << "'.";
                 return j;
             }
         }
@@ -57,7 +57,7 @@ bool save_file(dpp::cluster& core, const nlohmann::json& j, const std::string& p
             if (cfile.is_open() && cfile.good()) {
                 cfile << buf;
                 cfile.flush();
-                Lunaris::cout << Lunaris::console::color::DARK_GREEN << "Saved file @ '" << fullpath << "'!";
+                //Lunaris::cout << Lunaris::console::color::DARK_GREEN << "Saved file @ '" << fullpath << "'!";
                 return true;
             }
             Lunaris::cout << Lunaris::console::color::RED << "Can't save file @ '" << fullpath << "'!";

@@ -171,7 +171,10 @@ public:
     void set_config_locked(const bool);
 };
 
-inline MemoryReferenceManager<GuildSelf> __guild_memory_control([](const mull id){return GuildSelf{*__global_cluster_sad_times, std::to_string(id)};}, "GuildSelf");
+inline MemoryReferenceManager<GuildSelf> __guild_memory_control(
+    [](const mull id){return GuildSelf{*__global_cluster_sad_times, std::to_string(id)};},
+    [](GuildSelf& gs){ gs.save(); },
+    "GuildSelf");
 
 ComplexSharedPtr<GuildSelf> get_guild_config(const mull);
 //void delete_guild_config(const mull); // kick or ban from guild = delete configuration

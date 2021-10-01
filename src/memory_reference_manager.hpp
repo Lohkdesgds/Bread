@@ -16,8 +16,9 @@
 
 const std::chrono::seconds time_each = std::chrono::seconds(3);
 constexpr size_t time_check_references = 30; // time_check_references * time_each = total time per possible memory flush.
-constexpr size_t min_living_time = 3600 * 1000; // ms
-constexpr size_t memory_reference_flush_max_overload_control = 20; // up to 50 files per try
+constexpr mull min_living_time = 60 * 60 * 1000; // ms
+constexpr mull time_flush_always = 60 * 60 * 1000; // 1 hour
+constexpr size_t memory_reference_flush_max_overload_control = 30; // up to 50 files per try
 
 template<typename T>
 class ComplexSharedPtr{
@@ -38,6 +39,7 @@ public:
 
     T* const operator->() const;
     const T& operator*() const;
+    T& get_reference_edit();
 
     operator bool() const;
     size_t use_count() const;
@@ -53,6 +55,7 @@ class MemoryReferenceManager {
     struct block_data {
         ComplexSharedPtr<T> ref;
         mull when_ms = 0; // when to kill (get_time_ms() + min_living_time on create/update)
+        mull last_flush = 0; // if when_ms take too long, this will flush sometimes
     };
     std::thread silence_flush;
     std::shared_mutex smu;
@@ -62,6 +65,7 @@ class MemoryReferenceManager {
     bool is_running = false;
 
     const std::function<T(const mull&)> generator;
+    const std::function<void(T&)> save_func;
 
     void keep_flush();
 
@@ -71,7 +75,7 @@ class MemoryReferenceManager {
 
     std::string genid() const;
 public:
-    MemoryReferenceManager(const std::function<T(const mull&)>, const std::string&);
+    MemoryReferenceManager(const std::function<T(const mull&)>, const std::function<void(T&)>, const std::string&);
     ~MemoryReferenceManager();
 
     // lock?
