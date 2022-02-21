@@ -150,8 +150,8 @@ void __handle_command_poll(dpp::cluster& core, const dpp::interaction_create_t& 
 
     dpp::embed poll_enq;
     dpp::embed_author author;
-    author.name = src.command.usr.username + "#" + std::to_string(src.command.usr.discriminator);
-    author.icon_url = src.command.usr.get_avatar_url() + "?size=256";
+    author.name = format_user(src.command.usr);
+    author.icon_url = src.command.usr.get_avatar_url(256);
 
     poll_enq.set_author(author);
     poll_enq.set_title(title);

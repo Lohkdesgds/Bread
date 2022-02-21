@@ -2,9 +2,9 @@
 
 void __handle_message_statistics(dpp::cluster& core, const dpp::message_create_t& ev)
 {
-    auto uconf = get_user_config(ev.msg->author->id);
-    uconf->add_message_sent_once(ev.msg->guild_id);
-    if (ev.msg->attachments.size()) uconf->add_attachment_sent_once(ev.msg->guild_id);
+    auto uconf = get_user_config(ev.msg.author.id);
+    uconf->add_message_sent_once(ev.msg.guild_id);
+    if (ev.msg.attachments.size()) uconf->add_attachment_sent_once(ev.msg.guild_id);
 }
 
 void __handle_command_statistics_any(dpp::cluster& core, const dpp::interaction_create_t& src, dpp::command_interaction& cmd)
@@ -45,9 +45,9 @@ void __handle_command_statistics(dpp::cluster& core, const dpp::interaction_crea
             dpp::embed autoembed = dpp::embed()
                 .set_author(
                     dpp::embed_author{
-                        .name = (user.username + "#" + std::to_string(user.discriminator)),
-                        .url = user.get_avatar_url(),
-                        .icon_url = user.get_avatar_url() + "?size=256"
+                        .name = format_user(user),
+                        .url = user.get_avatar_url(256),
+                        .icon_url = user.get_avatar_url(256)
                     })
                 .set_title("**__" + lang->get(lang_line::COMMAND_STATS_FINAL_TITLE_NAME) + "__**")
                 //.set_description("**―――――――――――――――――――――**") // 21 lines

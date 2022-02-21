@@ -1,19 +1,58 @@
 #include "tags.hpp"
 
-void __handle_guild_member_update(dpp::cluster& core, const dpp::guild_member_update_t& ev, std::shared_ptr<EachLang> lang)
+void __handle_guild_member_update(dpp::cluster& core, const dpp::guild_member_update_t& ev)
 {
     if (ev.updated.is_pending()) return; // not ready
-
-    //auto uconf = get_user_config(ev.updated.user_id);
-    auto gconf = get_guild_config(ev.updating_guild->id);
-
-    const auto& roles_ruling = gconf->get_roles_joined();
-    if (roles_ruling.empty()) return; // no roles configured
 
     dpp::guild_member member;
     member.guild_id = ev.updating_guild->id;
     member.user_id 	= ev.updated.user_id;
     member.roles 	= ev.updated.roles;
+
+    __handle_guild_member_tags(core, member);
+    
+    //auto uconf = get_user_config(ev.updated.user_id);
+    //auto gconf = get_guild_config(ev.updating_guild->id);
+//
+    //const auto& roles_ruling = gconf->get_roles_joined();
+    //if (roles_ruling.empty()) return; // no roles configured
+//
+    //bool has_news = false;
+//
+    //for (const auto& i : roles_ruling) {
+    //    if (std::find(member.roles.begin(), member.roles.end(), i) == member.roles.end()) {
+    //        member.roles.push_back(i);
+    //        has_news = true;
+    //    }
+    //}
+//
+    //if (!has_news) return;
+//
+    //core.guild_edit_member(member, [gconf](const dpp::confirmation_callback_t data) mutable {
+    //    if (data.is_error()){
+    //        gconf->post_log("Can't update member's roles (autorole) -> ERR#" + std::to_string(data.http_info.status) + " BODY: " + data.http_info.body);
+    //        Lunaris::cout << "[UPDATE_TAGS] Failed pending autotag task." ;
+    //        Lunaris::cout << "Response #" << data.http_info.status << ": " << data.http_info.body ;
+    //    }
+    //});
+}
+
+void __handle_guild_member_update_message(dpp::cluster& core, const dpp::message_create_t& ev)
+{
+    dpp::guild_member member;
+    member.guild_id = ev.msg.guild_id;
+    member.user_id 	= ev.msg.author.id;
+    member.roles 	= ev.msg.member.roles;
+
+    __handle_guild_member_tags(core, member);
+}
+
+void __handle_guild_member_tags(dpp::cluster& core, dpp::guild_member& member)
+{
+    auto gconf = get_guild_config(member.guild_id);
+
+    const auto& roles_ruling = gconf->get_roles_joined();
+    if (roles_ruling.empty()) return; // no roles configured
 
     bool has_news = false;
 

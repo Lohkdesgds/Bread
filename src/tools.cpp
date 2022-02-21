@@ -1,21 +1,47 @@
 #include "tools.hpp"
 
-//void atomic_ull::plus()
-//{
-//    std::lock_guard<std::mutex> luck(m);
-//    val++;
-//}
-//
-//void atomic_ull::minus()
-//{
-//    std::lock_guard<std::mutex> luck(m);
-//    val--;
-//}
-//
-//mull atomic_ull::read()
-//{
-//    return val;
-//}
+#ifdef MANUAL_ATOMIC
+void atomic_ull::plus()
+{
+    std::lock_guard<std::mutex> luck(m);
+    ++val;
+}
+
+void atomic_ull::minus()
+{
+    std::lock_guard<std::mutex> luck(m);
+    --val;
+}
+
+mull atomic_ull::read()
+{
+    return val;
+}
+#else
+void atomic_ull::plus()
+{
+    ++atm;
+}
+
+void atomic_ull::minus()
+{
+    --atm;
+}
+
+mull atomic_ull::read()
+{
+    return atm;
+}
+#endif
+
+std::string format_user(const dpp::user& u)
+{
+    return u.username + "#" + fmt::format("{:04d}", u.discriminator);
+    //std::string buf;
+    //buf.resize(5);
+    //snprintf(buf.data(), buf.size(), "%hu", u.discriminator);
+    //return u.username + "#" + buf;
+}
 
 mull get_time_ms()
 {

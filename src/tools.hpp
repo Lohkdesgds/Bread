@@ -10,6 +10,9 @@
 #include <iostream>
 #include <mutex>
 #include <sstream>
+#ifndef MANUAL_ATOMIC
+#include <atomic>
+#endif
 
 #include "console.hpp"
 
@@ -40,14 +43,20 @@ struct returnType<R(As...)>
  { using type = R; };
 
 
-//class atomic_ull {
-//    std::mutex m;
-//    mull val = 0;
-//public:
-//    void plus();
-//    void minus();
-//    mull read();
-//};
+class atomic_ull {
+#ifdef MANUAL_ATOMIC
+    std::mutex m;
+    mull val = 0;
+#else
+    std::atomic<mull> atm;
+#endif
+public:
+    void plus();
+    void minus();
+    mull read();
+};
+
+std::string format_user(const dpp::user&);
 
 template<typename T>
 class nullable_ref {

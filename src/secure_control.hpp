@@ -1,14 +1,14 @@
 #pragma once
 
 #include <stdexcept>
-#include <atomic>
+//#include <atomic>
 #include "tools.hpp"
 
 class SafeFileControl {
-    std::atomic<mull>& ref;
+    atomic_ull& ref;
     bool count = true; // if moved, false
 public:
-    SafeFileControl(std::atomic<mull>&);
+    SafeFileControl(atomic_ull&);
     ~SafeFileControl();
 
     SafeFileControl(SafeFileControl&&);
@@ -21,7 +21,7 @@ public:
 };
 
 class TotalControl {
-    std::atomic<mull> files_open;
+    atomic_ull files_open;
     bool fail_throw_always = false;
 public:
     SafeFileControl get_lock();

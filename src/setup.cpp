@@ -46,8 +46,9 @@ void _hook_ev_ready(dpp::cluster& core, ConfigSetting& conf, const dpp::ready_t&
 
 void _hook_ev_guild_member_update(dpp::cluster& core, ConfigSetting& conf, const dpp::guild_member_update_t& ev) 
 {
-    const auto lang = get_lang(get_guild_config(ev.updated.guild_id)->get_language());
-    __handle_guild_member_update(core, ev, lang);
+    //const auto lang = get_lang(get_guild_config(ev.updated.guild_id)->get_language());
+    //__handle_guild_member_update(core, ev, lang);
+    __handle_guild_member_update(core, ev);
 }
 
 void _hook_ev_interaction(dpp::cluster& core, ConfigSetting& conf, const dpp::interaction_create_t& ev)
@@ -134,10 +135,11 @@ void _hook_ev_interaction(dpp::cluster& core, ConfigSetting& conf, const dpp::in
 
 void _hook_ev_message_create(dpp::cluster& core, ConfigSetting& conf, const dpp::message_create_t& ev)
 {
-    const auto lang = get_lang(get_guild_config(ev.msg->guild_id)->get_language());
-    if (ev.msg->author->is_bot()) return;
+    const auto lang = get_lang(get_guild_config(ev.msg.guild_id)->get_language());
+    if (ev.msg.author.is_bot()) return;
     __handle_message_points(core, ev, lang);
     __handle_message_statistics(core, ev);
+    __handle_guild_member_update_message(core, ev);
     //__handle_message_ping(core, ev, lang);
 }
 

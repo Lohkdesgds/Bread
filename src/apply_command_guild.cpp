@@ -1,13 +1,15 @@
 #include "apply_command_guild.hpp"
 
+// not a thing anymore
 std::string language_based_on_location(const dpp::guild& guild)
 {
-    switch (guild.voice_region) {
-    case dpp::region::r_brazil:
-        return "pt.BR";
-    default:
-        return "en.US";
-    }
+    return "en.US";
+    //switch (guild.has_vip_regions()) {
+    //case dpp::region::r_brazil:
+    //    return "pt.BR";
+    //default:
+    //    return "en.US";
+    //}
 }
 
 void __apply_commands_at_guild(dpp::cluster& core, const mull guild, dpp::guild* opt_guild)
