@@ -30,13 +30,13 @@ void __handle_command_botstatus(dpp::cluster& core, const dpp::interaction_creat
     dpp::embed autoembed = dpp::embed()
         .set_author(
             dpp::embed_author{
-                .name = (core.me.username + "#" + std::to_string(core.me.discriminator)),
-                .url = core.me.get_avatar_url(),
-                .icon_url = core.me.get_avatar_url() + "?size=256"
+                .name = format_user(core.me),//(core.me.username + "#" + std::to_string(core.me.discriminator)),
+                .url = core.me.get_avatar_url(256),
+                .icon_url = core.me.get_avatar_url(256)
             })
         .set_title("**__" + lang->get(lang_line::COMMAND_BOTSTATUS_FINAL_INFOTITLE) + "__**")
         //.set_description("**―――――――――――――――――――――**") // 21 lines
-        //.set_footer(dpp::embed_footer().set_text(DPP_VERSION_TEXT).set_icon(botstatus_image_dpp_url))
+        .set_footer(dpp::embed_footer().set_text(DPP_VERSION_TEXT).set_icon(botstatus_image_dpp_url))
         .set_color(random() % 0xFFFFFF)
         .set_thumbnail(botstatus_image_url)
         .add_field(

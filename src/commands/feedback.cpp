@@ -21,8 +21,8 @@ void __handle_command_feedback(dpp::cluster& core, const dpp::interaction_create
         msg.guild_id = guild_feedback_id;
 
         dpp::embed_author author;
-        author.name = (src.command.usr.username + "#" + std::to_string(src.command.usr.discriminator));
-        author.icon_url = src.command.usr.get_avatar_url();
+        author.name = format_user(src.command.usr);
+        author.icon_url = src.command.usr.get_avatar_url(256);
 
         dpp::embed_footer foot;
         foot.set_text("From guild #" + std::to_string(src.command.guild_id));

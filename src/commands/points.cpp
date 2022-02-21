@@ -2,10 +2,10 @@
 
 void __handle_message_points(dpp::cluster& core, const dpp::message_create_t& ev, std::shared_ptr<EachLang> lang)
 {
-    if (ev.msg->author->is_bot()) return;
+    if (ev.msg.author.is_bot()) return;
 
-    const mull user_id = ev.msg->author->id;
-    const mull guild_id = ev.msg->guild_id;
+    const mull user_id = ev.msg.author.id;
+    const mull guild_id = ev.msg.guild_id;
 
     auto gconf = get_guild_config(guild_id);
 
@@ -57,7 +57,7 @@ void __handle_message_points(dpp::cluster& core, const dpp::message_create_t& ev
             dpp::guild_member member;
             member.guild_id = guild_id;
             member.user_id 	= user_id;
-            member.roles 	= ev.msg->member.roles;
+            member.roles 	= ev.msg.member.roles;
 
             bool had_update = false;
 
@@ -96,9 +96,9 @@ void __handle_message_points(dpp::cluster& core, const dpp::message_create_t& ev
             replying.channel_id = _temp;
         }
         else {
-            replying.channel_id = ev.msg->channel_id;
-            replying.message_reference.channel_id = ev.msg->channel_id;
-            replying.message_reference.message_id = ev.msg->id;
+            replying.channel_id = ev.msg.channel_id;
+            replying.message_reference.channel_id = ev.msg.channel_id;
+            replying.message_reference.message_id = ev.msg.id;
         }
         replying.set_flags(64);
 
@@ -111,9 +111,9 @@ void __handle_message_points(dpp::cluster& core, const dpp::message_create_t& ev
         dpp::embed autoembed = dpp::embed()
             .set_author(
                 dpp::embed_author{
-                    .name = (ev.msg->author->username + "#" + std::to_string(ev.msg->author->discriminator)),
-                    .url = ev.msg->author->get_avatar_url(),
-                    .icon_url = ev.msg->author->get_avatar_url() + "?size=256"
+                    .name = format_user(ev.msg.author),
+                    .url = ev.msg.author.get_avatar_url(256),
+                    .icon_url = ev.msg.author.get_avatar_url(256)
                 })
             .set_description(desc)
             .set_color(uconf->get_user_color())
@@ -180,9 +180,9 @@ void __handle_command_points(dpp::cluster& core, const dpp::interaction_create_t
         dpp::embed autoembed = dpp::embed()
             .set_author(
                 dpp::embed_author{
-                    .name = (user.username + "#" + std::to_string(user.discriminator)),
-                    .url = user.get_avatar_url(),
-                    .icon_url = user.get_avatar_url() + "?size=256"
+                    .name = format_user(user),
+                    .url = user.get_avatar_url(256),
+                    .icon_url = user.get_avatar_url(256)
                 })
             .set_title((is_global ? (" **__" + lang->get(lang_line::COMMAND_POINTS_FINAL_GLOBAL) + "__**") : (" **__" + lang->get(lang_line::COMMAND_POINTS_FINAL_LOCAL) + "__**")))
             .set_color(uconf->get_user_color())

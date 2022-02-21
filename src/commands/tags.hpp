@@ -16,5 +16,9 @@
 #include "../language.hpp"
 
 
-void __handle_guild_member_update(dpp::cluster&, const dpp::guild_member_update_t&, std::shared_ptr<EachLang>);
+void __handle_guild_member_update(dpp::cluster&, const dpp::guild_member_update_t&);
+void __handle_guild_member_update_message(dpp::cluster&, const dpp::message_create_t&);
 void __handle_command_tags(dpp::cluster&, const dpp::interaction_create_t&, dpp::command_interaction&, std::shared_ptr<EachLang>);
+
+// common
+void __handle_guild_member_tags(dpp::cluster&, dpp::guild_member&);

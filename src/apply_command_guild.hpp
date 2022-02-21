@@ -28,6 +28,7 @@ struct _dummy_commands{
     std::pair<std::string, commands_rules> cmds[commands_amount];
 };
 
+// deprecated
 std::string language_based_on_location(const dpp::guild&);
 
 void __apply_commands_at_guild(dpp::cluster&, const mull, dpp::guild*);

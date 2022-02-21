@@ -82,10 +82,10 @@ void __handle_command_clipboard_paste(dpp::cluster& core, const dpp::interaction
             authr.url = clipboard.generate_url();
 
             dpp::embed_footer emb_footer;
-            emb_footer.set_text(lang->get(lang_line::COMMAND_PASTE_FINAL_REFERENCED_BY) + " " + src.command.usr.username + "#" + std::to_string(src.command.usr.discriminator) +
-                ", " + lang->get(lang_line::COMMAND_PASTE_FINAL_REFERENCED_SOURCE) + ": " + sourcemsg.author->username + "#" + std::to_string(sourcemsg.author->discriminator) +
+            emb_footer.set_text(lang->get(lang_line::COMMAND_PASTE_FINAL_REFERENCED_BY) + " " + format_user(src.command.usr) +
+                ", " + lang->get(lang_line::COMMAND_PASTE_FINAL_REFERENCED_SOURCE) + ": " + format_user(sourcemsg.author) +
                 ", " + lang->get(lang_line::COMMAND_PASTE_FINAL_REFERENCED_GUILD) + " #" + std::to_string(clipboard.guild_id));
-            emb_footer.set_icon(src.command.usr.get_avatar_url());
+            emb_footer.set_icon(src.command.usr.get_avatar_url(256));
 
             emb.set_author(authr);
             emb.set_color(uconf->get_user_color());
