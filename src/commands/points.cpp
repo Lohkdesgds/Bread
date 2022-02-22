@@ -151,7 +151,7 @@ void __handle_command_points(dpp::cluster& core, const dpp::interaction_create_t
             gconf->post_log("Could not load user information -> ERR#" + std::to_string(data.http_info.status) + " BODY: " + data.http_info.body);
         }
 
-        dpp::user user = std::get<dpp::user>(data.value);
+        dpp::user_identified user = std::get<dpp::user_identified>(data.value);
 
         const auto uconf = get_user_config(user.id);
         
