@@ -32,7 +32,7 @@ void __handle_command_statistics(dpp::cluster& core, const dpp::interaction_crea
 
     core.user_get(user_target, [src, &core, replying, lang](const dpp::confirmation_callback_t& data) mutable {
         if (!data.is_error()){
-            dpp::user user = std::get<dpp::user>(data.value);
+            dpp::user_identified user = std::get<dpp::user_identified>(data.value);
 
             const auto uconf = get_user_config(user.id);
 

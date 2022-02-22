@@ -89,13 +89,14 @@ int main()
 			dt2.destroy(true);
 
 			Lunaris::cout << Lunaris::console::color::GREEN << "Ended delayed tasks." ;
+			Lunaris::cout << Lunaris::console::color::GREEN << "Done. Goodbye! (Data is safe, kill if this gets deadlock somehow!)" ;
 
+			__global_cluster_sad_times.reset();
 
-			Lunaris::cout << Lunaris::console::color::GREEN << "Done. Goodbye! (Ignore error below, 5 sec delay)" ;
+			std::this_thread::sleep_for(std::chrono::seconds(2));
 
-			std::this_thread::sleep_for(std::chrono::seconds(5));
-
-			exit(0);
+			//exit(0);
+			return 0;
 		}
 		else if (commandline.find("setstatus ") == 0 && commandline.size() > sizeof("setstatus"))
 		{
@@ -123,6 +124,7 @@ int main()
 		}
 	} // quick exit
 
+	
 
 	exit(0);
 	return 0;
