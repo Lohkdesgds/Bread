@@ -30,7 +30,7 @@
 #include "commands/rgbcolor.hpp"
 
 /// DEFAULTS
-constexpr int default_app_intents = dpp::i_guilds | dpp::i_guild_messages | dpp::i_guild_members | dpp::i_guild_bans | dpp::i_guild_message_reactions;
+constexpr int default_app_intents = dpp::i_guilds | dpp::i_guild_messages | dpp::i_guild_members | dpp::i_guild_bans | dpp::i_guild_message_reactions | dpp::i_message_content;
 constexpr int default_shard_count = 0;
 
 /// FUNCTIONS

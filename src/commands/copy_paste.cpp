@@ -60,6 +60,8 @@ void __handle_command_clipboard_paste(dpp::cluster& core, const dpp::interaction
         replying.set_flags(0);
         src.reply(dpp::interaction_response_type::ir_deferred_channel_message_with_source, replying);
 
+        //Lunaris::cout << "[DEBUG] MESSAGE_GET B4: {MSGID=" << clipboard.message_id << ";CHANNELID=" << clipboard.channel_id << "}";
+
         core.message_get(clipboard.message_id, clipboard.channel_id, [&core, clipboard, src, uconf, cmd, lang, replying, gconf](const dpp::confirmation_callback_t data) mutable {
             if (data.is_error()) {
                 replying.set_flags(64);
@@ -72,6 +74,9 @@ void __handle_command_clipboard_paste(dpp::cluster& core, const dpp::interaction
             replying.set_flags(0);
 
             dpp::message sourcemsg = std::get<dpp::message>(data.value);
+
+            //Lunaris::cout << "[DEBUG] MESSAGE_GET: {content=" << sourcemsg.content << ";attachments:" << sourcemsg.attachments.size() << ";author=" << sourcemsg.author.format_username() << "}";
+            //Lunaris::cout << "[DEBUG] HTTP Body: " << data.http_info.body;
 
             auto paste_content = get_str_in_command(cmd, lang->get(lang_command::PASTE_TEXT));
 
