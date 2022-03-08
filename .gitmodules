@@ -1,3 +1,9 @@
 [submodule "libs/DPP"]
 	path = libs/DPP
 	url = https://www.github.com/brainboxdotcc/DPP
+[submodule "libs/Lunaris-Console"]
+	path = libs/Lunaris-Console
+	url = https://www.github.com/Lohkdesgds/Lunaris-Console
+[submodule "libs/Lunaris-Bomb"]
+	path = libs/Lunaris-Bomb
+	url = https://www.github.com/Lohkdesgds/Lunaris-Bomb

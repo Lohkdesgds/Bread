@@ -3,6 +3,9 @@ cmake_minimum_required(VERSION 3.15)
 # Project name, version and description
 project(discord-bot VERSION 1.0 DESCRIPTION "A discord bot")
 
+#option(DPP_BUILD_TEST OFF)
+#option(BUILD_SHARED_LIBS OFF)
+
 if(UNIX AND NOT APPLE) # linux
 	set(CMAKE_THREAD_LIBS_INIT "-lpthread")
 	SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread")
@@ -23,7 +26,7 @@ add_subdirectory(libs/DPP)
     # your others files...
 #)
 
-file(GLOB_RECURSE source_list "src/*.cpp" "src/*.hpp")
+file(GLOB_RECURSE source_list "bot/src/*.cpp" "bot/include/*.hpp")
 add_executable(${PROJECT_NAME} ${source_list})
 #file(GLOB ${PROJECT_NAME} CONFIGURE_DEPENDS "*.h" "*.cpp")
 
@@ -37,6 +40,9 @@ target_link_libraries(${PROJECT_NAME}
 # Specify includes
 target_include_directories(${PROJECT_NAME} PRIVATE
    libs/DPP/include
+   libs/Lunaris-Console
+   libs/Lunaris-Bomb
+   bot/include
    #libs/spdlog/include # Like before, if you need spdlog
 )
 
