@@ -1,11 +1,20 @@
 #pragma once
 
-#include <mutex>
+#include <shared_mutex>
+#include <functional>
 
-// quick easy simple base for any thread-sensitive stuff
-// changing this file and other things in the future, please don't look at this thing
 template<typename T>
-struct safe_of {
+class safe_data {
     T obj;
-    mutable std::mutex obj_mu;
+    mutable std::shared_mutex mu;
+public:
+    template<typename J>
+    J csafe(const std::function<J(const T&)>) const;
+    template<typename J>
+    J safe(const std::function<J(T&)>);
+
+    T reset();
+    T reset(T&&);
 };
+
+#include <impl/safe_template.ipp>

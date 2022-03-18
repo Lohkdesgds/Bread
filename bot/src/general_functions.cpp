@@ -24,29 +24,37 @@ void g_on_log(const dpp::log_t& log)
     }
 }
 
-void g_on_ready(const dpp::ready_t& ev, slash_global& sg)
+void g_on_ready(const dpp::ready_t& ev, safe_data<slash_global>& sg)
 {
-    sg.update_bot_id(*ev.from->creator);
+    sg.safe<void>([&ev](slash_global& s){ s.update_bot_id(*ev.from->creator); });
 }
 
-void g_tick_presence(const general_config& gc, dpp::cluster& bot)
+void g_on_modal(const dpp::form_submit_t& ev)
 {
-    dpp::activity act = dpp::activity(static_cast<dpp::activity_type>(gc.status_code), gc.status_text, "", gc.status_link);
-    dpp::presence pres(static_cast<dpp::presence_status>(gc.status_mode), act);
-    bot.set_presence(pres);
+    ev.reply("All good m8!");
 }
 
-void g_apply_guild_local_commands(dpp::cluster& bot, const safe_of<std::vector<slash_local>>& conf)
+void g_tick_presence(const safe_data<general_config>& g, dpp::cluster& bot)
+{
+    g.csafe<void>([&bot](const general_config& gc){
+        dpp::activity act = dpp::activity(static_cast<dpp::activity_type>(gc.status_code), gc.status_text, "", gc.status_link);
+        dpp::presence pres(static_cast<dpp::presence_status>(gc.status_mode), act);
+        bot.set_presence(pres);
+    });
+}
+
+void g_apply_guild_local_commands(dpp::cluster& bot, const safe_data<std::vector<slash_local>>& conf)
 {    
-    std::lock_guard<std::mutex> l(conf.obj_mu);
+    conf.csafe<void>([&bot](const std::vector<slash_local>& vec){
 
-    // there's a bulk version for create on discord too. Check that.
-    for(const auto& i : conf.obj) {
-        // do apply things
-    }
+        // there's a bulk version for create on discord too. Check that.
+        for(const auto& i : vec) {
+            // do apply things
+        }
+    });
 }
 
-void input_handler_cmd(dpp::cluster& bot, bool& _keep, safe_of<general_config>& config, safe_of<std::vector<slash_local>>& lslashes, const slash_global& gslash, const std::string& cmd)
+void input_handler_cmd(dpp::cluster& bot, bool& _keep, safe_data<general_config>& config, safe_data<std::vector<slash_local>>& lslashes, const safe_data<slash_global>& gslash, const std::string& cmd, const timed_factory<dpp::snowflake, user_info>& tusers)
 {
     std::string arg;
     switch(g_interp_cmd(cmd, arg)) {
@@ -63,6 +71,7 @@ void input_handler_cmd(dpp::cluster& bot, bool& _keep, safe_of<general_config>& 
         cout << console::color::GRAY << "> rgs [snowflake] : [Request Guilds Snowflake] Get information about a guild on list by SNOWFLAKE.";
         cout << console::color::GRAY << "> rus [snowflake] : [Request User Snowflake] Search and try to get information of user by SNOWFLAKE.";
         cout << console::color::GRAY << "> rsc             : [Reset Slash Commands] Clean up local guild slash commands and bulk global ones. (WARN: DO ONLY FOR DEBUG! MAY BREAK GUILD CONFIGURED STUFF!)";
+        cout << console::color::GRAY << "> mem             : Get memory information (things in memory)";
     }
         break;
     case commands::EXIT:
@@ -73,32 +82,36 @@ void input_handler_cmd(dpp::cluster& bot, bool& _keep, safe_of<general_config>& 
         break;
     case commands::SETSTATUSSTR:
     {
-        std::lock_guard<std::mutex> l(config.obj_mu);
-        config.obj.status_text = arg;
-        cout << console::color::GREEN << "[MAIN] Status string updated to '" << config.obj.status_text << "'.";
+        config.safe<void>([&](general_config& g){
+            g.status_text = arg;
+            cout << console::color::GREEN << "[MAIN] Status string updated to '" << g.status_text << "'.";
+        });
     }
         break;
     case commands::SETSTATUSMODE: // online, offline etc
     {
-        std::lock_guard<std::mutex> l(config.obj_mu);
-        if (arg.size()) sscanf(arg.c_str(), "%u", &config.obj.status_mode);
-        if (config.obj.status_mode > 3) config.obj.status_mode = 0;
-        cout << console::color::GREEN << "[MAIN] Status mode updated to '" << config.obj.status_mode << "'.";
+        config.safe<void>([&](general_config& g){
+            if (arg.size()) sscanf(arg.c_str(), "%u", &g.status_mode);
+            if (g.status_mode > 3) g.status_mode = 0;
+            cout << console::color::GREEN << "[MAIN] Status mode updated to '" << g.status_mode << "'.";
+        });
     }
         break;
     case commands::SETSTATUSCODE: // streaming, listening etc
     {
-        std::lock_guard<std::mutex> l(config.obj_mu);
-        if (arg.size()) sscanf(arg.c_str(), "%u", &config.obj.status_code);
-        if (config.obj.status_code > 5) config.obj.status_code = 0;
-        cout << console::color::GREEN << "[MAIN] Status code updated to '" << config.obj.status_code << "'.";
+        config.safe<void>([&](general_config& g){
+            if (arg.size()) sscanf(arg.c_str(), "%u", &g.status_code);
+            if (g.status_code > 5) g.status_code = 0;
+            cout << console::color::GREEN << "[MAIN] Status code updated to '" << g.status_code << "'.";
+        });
     }
         break;
     case commands::SETSTATUSLINK:
     {
-        std::lock_guard<std::mutex> l(config.obj_mu);
-        config.obj.status_link = arg;
-        cout << console::color::GREEN << "[MAIN] Status link updated to '" << config.obj.status_link << "'.";
+        config.safe<void>([&](general_config& g){
+            g.status_link = arg;
+            cout << console::color::GREEN << "[MAIN] Status link updated to '" << g.status_link << "'.";
+        });
     }
         break;
     case commands::REQUESTGUILDLIST:
@@ -190,7 +203,7 @@ void input_handler_cmd(dpp::cluster& bot, bool& _keep, safe_of<general_config>& 
     {
         cout << console::color::GRAY << "[MAIN] Refreshing global commands...";
 
-        gslash.apply_bulk(bot);
+        gslash.csafe<void>([&bot](const slash_global& g){ g.apply_bulk(bot); });
 
         cout << console::color::GRAY << "[MAIN] Loading guild list from cache...";
 
@@ -235,6 +248,12 @@ void input_handler_cmd(dpp::cluster& bot, bool& _keep, safe_of<general_config>& 
         }
     }
         break;
+    case commands::MEMSTATUS:
+    {
+        cout << console::color::GREEN << "[MAIN] Data in memory (custom data):";
+        cout << console::color::GREEN << "[MAIN] Users: " << tusers.size();
+    }
+        break;
     }
 
 }
@@ -256,6 +275,7 @@ commands g_interp_cmd(const std::string& s, std::string& o)
     if (s.find("rgs") == 0)  { if (s.size() > 4) { o = s.substr(4); } return commands::REQUESTGUILDSNOWFLAKE; }
     if (s.find("rus") == 0)  { if (s.size() > 4) { o = s.substr(4); } return commands::REQUESTUSERSNOWFLAKE; }
     if (s.find("rsc") == 0)  { if (s.size() > 4) { o = s.substr(4); } return commands::RESETSLASHCOMMANDS; }
+    if (s.find("mem") == 0)  { if (s.size() > 4) { o = s.substr(4); } return commands::MEMSTATUS; }
     return commands::NONE;
 }
 
@@ -284,8 +304,41 @@ std::string g_smash_guild_info(const dpp::guild& g)
         "SysCHID:" + std::to_string(g.system_channel_id) + "}";
 }
 
-void setup_bot(dpp::cluster& bot, slash_global& sg)
+void setup_bot(dpp::cluster& bot, safe_data<slash_global>& sg, timed_factory<dpp::snowflake, user_info>& tu)
 {
     bot.on_log(g_on_log);
-    bot.on_ready([&sg](const dpp::ready_t& arg){g_on_ready(arg, sg);});
+    bot.on_ready([&sg](const dpp::ready_t& arg){ g_on_ready(arg, sg); });
+    bot.on_form_submit([&](const dpp::form_submit_t& arg){ g_on_modal(arg); });
+    bot.on_interaction_create([&](const dpp::interaction_create_t& arg) { 
+        //arg.reply("Yoo I'm still in beta."); 
+        dpp::interaction_modal_response modal("0000", "Hello there");
+        modal.add_component(
+            dpp::component()
+                .set_label("This is a label")
+                .set_id("thelabel")
+                .set_type(dpp::cot_text)
+                .set_placeholder("placeholding her")
+                .set_min_length(1)
+                .set_max_length(500)
+                .set_text_style(dpp::text_paragraph)
+        );
+        //.add_row()
+        //.add_component(
+        //    dpp::component()
+        //        .set_label("THIS IS COOOOOL")
+        //        .set_type(dpp::cot_selectmenu)
+        //        .add_select_option(dpp::select_option("Option one", "Opt1Val", "This is the option 1"))
+        //        .add_select_option(dpp::select_option("Option two", "Opt2Val", "This is the option 2"))
+        //        .add_select_option(dpp::select_option("Option three", "Opt3Val", "This is the option 3"))
+        //);
+
+        arg.dialog(modal, [](const dpp::confirmation_callback_t& conf){ if (conf.is_error()) cout << "DIALOG ERR: " << conf.http_info.body; });
+    });
+}
+
+std::unique_ptr<dpp::cluster> build_bot_from(safe_data<general_config>& c)
+{
+    return c.csafe<std::unique_ptr<dpp::cluster>>([](const general_config& g) -> std::unique_ptr<dpp::cluster> {
+        return std::unique_ptr<dpp::cluster>(new dpp::cluster(g.token, g.intents, g.shard_count));
+    });
 }

@@ -13,12 +13,11 @@
 #include <general_functions.hpp>
 #include <safe_template.hpp>
 #include <slashing.hpp>
+#include <defaults.hpp>
+#include <timed_factory.hpp>
+#include <user_info.hpp>
 
 using namespace Lunaris;
-
-const std::string needed_paths[] = {"./bot/", "./guilds/", "./users/"};
-const std::string config_path = "./bot/config.json";
-const std::string slash_path = "./bot/slashes.json";
 
 int main()
 {
@@ -26,45 +25,52 @@ int main()
 
     for(const auto& i : needed_paths) {if (mkdir(i.c_str(), 0777) && errno != EEXIST) { cout << console::color::RED << "Can't create path \"" << i << "\". Fatal error.";}}
 
-    safe_of<general_config> config;
-    slash_global gslash;
-    safe_of<std::vector<slash_local>> lslashes;
+    safe_data<general_config> config;
+    safe_data<slash_global> gslash;
+    safe_data<std::vector<slash_local>> lslashes;
+    timed_factory<dpp::snowflake, user_info> tusers;
 
-    if (!gslash.load_from(slash_path)) {
+
+    if (!gslash.safe<bool>([](slash_global& s){ return s.load_from(slash_path); })) {
         cout << console::color::RED << "Can't load global slash commands (needed for bot use). Please fix \"" << slash_path << "\"";
         lock_indefinitely();
-        return 0;
     }
 
-    if (!config.obj.load_from(config_path) || config.obj.token.empty()) {
+    if (!config.safe<bool>([](general_config& g){ return g.load_from(config_path) || g.token.empty(); })) {
         cout << console::color::YELLOW << "[WARN] New configuration? Can't find \"" << config_path << "\" or token is empty. Entering setup process...";
 
         cout << console::color::GREEN << "[MAIN] Paste your bot token: ";
-        std::getline(std::cin, config.obj.token);
 
-        if (config.obj.intents == 0) {
-            cout << console::color::GREEN << "[MAIN] Setting up default tokens...";
-            config.obj.intents = dpp::i_default_intents;
-        }
+        config.safe<void>([](general_config& g){ 
+            std::getline(std::cin, g.token);
 
-        if (!config.obj.save_as(config_path)) {
-            cout << console::color::RED << "Can't save config at \"" << config_path << "\". Can't start. Please check if bot has permission to read/write files at that location.";
-        lock_indefinitely();
-            return 0;
-        }
+            if (g.intents == 0) {
+                cout << console::color::GREEN << "[MAIN] Setting up default tokens...";
+                g.intents = default_intents;
+            }
+
+            if (!g.save_as(config_path)) {
+                cout << console::color::RED << "Can't save config at \"" << config_path << "\". Can't start. Please check if bot has permission to read/write files at that location.";
+                lock_indefinitely();
+            }
+        });
 
         cout << console::color::GREEN << "[MAIN] Starting bot...";
     }
 
-    auto bot = std::unique_ptr<dpp::cluster>(new dpp::cluster(config.obj.token, config.obj.intents, config.obj.shard_count));
-    setup_bot(*bot, gslash);
+    auto bot = build_bot_from(config);
+    if (!bot) {
+        cout << console::color::RED << "Can't start bot!";
+        lock_indefinitely();
+    }
 
+    setup_bot(*bot, gslash, tusers);
 
     cout << console::color::GREEN << "[MAIN] Configuration loaded properly. Starting bot...";
 
     // prepare hard stuff
-    auto presence_update_timer = bot->start_timer([&]{ std::lock_guard<std::mutex> l(config.obj_mu); g_tick_presence(config.obj, *bot);}, 60);
-
+    auto presence_update_timer = bot->start_timer([&]{ g_tick_presence(config, *bot);}, 60);
+    auto tusers_timer = bot->start_timer([&]{ tusers.free_freeable(); }, 60);
 
     cout << console::color::AQUA << "[MAIN] Any help do 'help'";
 
@@ -73,12 +79,12 @@ int main()
     for(bool _keep = true; _keep && bot;) {
         std::string cmd;
         std::getline(std::cin, cmd);
-        input_handler_cmd(*bot, _keep, config, lslashes, gslash, cmd);
+        input_handler_cmd(*bot, _keep, config, lslashes, gslash, cmd, tusers);
     }
     
     // close hard stuff
     bot->stop_timer(presence_update_timer);
-
+    bot->stop_timer(tusers_timer);
 
     cout << console::color::AQUA << "[MAIN] If from now on this freezes, it's safe to just close.";
 
