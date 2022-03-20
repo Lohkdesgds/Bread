@@ -1,4 +1,5 @@
 #include <user_info.hpp>
+#include <general_functions.hpp>
 
 void user_info::clipboard_data::clear()
 {
@@ -74,7 +75,31 @@ void user_info::from_json(const nlohmann::json& j)
     find_json_autoabort(j, "pref_color", pref_color);
     find_json_autoabort(j, "times_they_got_positive_points", times_they_got_positive_points);
     find_json_autoabort(j, "times_they_got_negative_points", times_they_got_negative_points);
-    find_json_autoabort(j, "clipboard", clipboard);
+    if (j.contains("clipboard")) clipboard.from_json(j["clipboard"]);
     find_json_autoabort(j, "show_level_up_messages", show_level_up_messages);
     find_json_array_autoabort(j, "points_per_guild", points_per_guild);
+}
+
+user_info::user_info(const dpp::snowflake& id)
+    : __user_id(id)
+{
+    std::ifstream cfile(needed_paths[user_props::user_path_off] + std::to_string(__user_id));
+    if (!cfile.is_open() || !cfile.good()) return;
+
+    std::stringstream buffer;
+    buffer << cfile.rdbuf();
+    const auto js = nlohmann::json::parse(buffer.str(), nullptr, false);
+
+    from_json(js);
+}
+
+user_info::~user_info()
+{
+    std::ofstream cfile(needed_paths[user_props::user_path_off] + std::to_string(__user_id));
+    if (!cfile.is_open() || !cfile.good()) {
+        cout << console::color::RED << "FATAL ERROR: Can't save user #" << __user_id;
+        return;
+    }
+
+    cfile << to_json();
 }

@@ -35,7 +35,7 @@ inline std::shared_ptr<VarType> timed_factory<Key, VarType>::operator[](const Ke
     if (it != objs.end()) return it->second.var;
 
     mem mm(delta_for_kill);
-    std::shared_ptr<VarType> cpy = std::make_shared<VarType>();
+    std::shared_ptr<VarType> cpy = std::make_shared<VarType>(k);
     mm.var = cpy;
     objs.insert({k, std::move(mm)});
 

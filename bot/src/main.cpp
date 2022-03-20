@@ -1,21 +1,4 @@
-#include <dpp/dpp.h>
-#include <dpp/nlohmann/json.hpp>
-#include <dpp/fmt/format.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <unistd.h>
-#include <iostream>
-
-#include <console.h>
-#include <bomb.h>
-
-#include <general_config.hpp>
-#include <general_functions.hpp>
-#include <safe_template.hpp>
-#include <slashing.hpp>
-#include <defaults.hpp>
-#include <timed_factory.hpp>
-#include <user_info.hpp>
+#include <bot.hpp>
 
 using namespace Lunaris;
 
@@ -28,7 +11,6 @@ int main()
     safe_data<general_config> config;
     safe_data<slash_global> gslash;
     safe_data<std::vector<slash_local>> lslashes;
-    timed_factory<dpp::snowflake, user_info> tusers;
 
 
     if (!gslash.safe<bool>([](slash_global& s){ return s.load_from(slash_path); })) {
@@ -64,13 +46,13 @@ int main()
         lock_indefinitely();
     }
 
-    setup_bot(*bot, gslash, tusers);
+    setup_bot(*bot, gslash);
 
     cout << console::color::GREEN << "[MAIN] Configuration loaded properly. Starting bot...";
 
     // prepare hard stuff
     auto presence_update_timer = bot->start_timer([&]{ g_tick_presence(config, *bot);}, 60);
-    auto tusers_timer = bot->start_timer([&]{ tusers.free_freeable(); }, 60);
+    auto tusers_timer = bot->start_timer([&]{ tf_user_info.free_freeable(); }, 60);
 
     cout << console::color::AQUA << "[MAIN] Any help do 'help'";
 
@@ -79,7 +61,7 @@ int main()
     for(bool _keep = true; _keep && bot;) {
         std::string cmd;
         std::getline(std::cin, cmd);
-        input_handler_cmd(*bot, _keep, config, lslashes, gslash, cmd, tusers);
+        input_handler_cmd(*bot, _keep, config, lslashes, gslash, cmd);
     }
     
     // close hard stuff

@@ -24,11 +24,10 @@ inline bool find_json_autoabort(const nlohmann::json& json, const T& key, K& to,
 template<typename T, typename K>
 inline bool find_json_array_autoabort(const nlohmann::json& json, const T& key, K& to, std::function<void(const std::exception&)> errfunc)
 { 
-    if (!to) return false;
     auto jr = json.find(key);
     if (jr != json.end()) {
         try {
-            for(auto it : jr) to.insert(to.end(), it);
+            for(auto it : *jr) to.insert(to.end(), it);
             return true;
         }
         catch(const std::exception& e) {

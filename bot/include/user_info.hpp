@@ -5,8 +5,7 @@
 #include <dpp/fmt/format.h>
 #include <console.h>
 #include <bomb.h>
-
-#include <general_functions.hpp>
+#include <defaults.hpp>
 
 struct user_info {
     using mull = unsigned long long;
@@ -45,4 +44,9 @@ struct user_info {
 
     nlohmann::json to_json() const;
     void from_json(const nlohmann::json&);
+
+    // ======== automatic things ======== //
+    const dpp::snowflake __user_id;
+    user_info(const dpp::snowflake&);
+    ~user_info();
 };

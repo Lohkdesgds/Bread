@@ -31,7 +31,122 @@ void g_on_ready(const dpp::ready_t& ev, safe_data<slash_global>& sg)
 
 void g_on_modal(const dpp::form_submit_t& ev)
 {
-    ev.reply("All good m8!");
+    const auto you = tf_user_info[ev.command.usr.id];
+    if (!you) {
+        ev.reply("Something went wrong! You do not exist?! Please report error! I'm so sorry.");
+        return;
+    }
+    
+    if (ev.custom_id == "user-pref_color") {
+        try {
+            const std::string val = std::get<std::string>(ev.components[0].components[0].value);
+            const int64_t sel = interpret_color(val);
+            
+            auto_handle_button_switch(ev, ev.custom_id, [&](dpp::component& it){
+                you->pref_color = sel;
+                it.set_label("Profile color: " + (you->pref_color < 0 ? "DEFAULT" : print_hex(you->pref_color)));
+            });
+        }
+        catch(...) {
+            ev.reply("Sorry, something went wrong! I'm so sorry.");
+        }
+    }
+}
+
+void g_on_button_click(const dpp::button_click_t& ev)
+{
+    const auto you = tf_user_info[ev.command.usr.id];
+    if (!you) {
+        ev.reply("Something went wrong! You do not exist?! Please report error! I'm so sorry.");
+        return;
+    }
+
+    if (ev.custom_id == "user-show_level_up_messages")
+    {
+        auto_handle_button_switch(ev, ev.custom_id, [&](dpp::component& it){
+            you->show_level_up_messages = !you->show_level_up_messages;
+            set_boolean_button(you->show_level_up_messages, it);
+        });
+    }
+    else if (ev.custom_id == "user-pref_color")
+    {
+        dpp::interaction_modal_response modal("user-pref_color", "Select color");
+        modal.add_component(
+            dpp::component()
+                .set_label("What color best describes you?")
+                .set_id("color")
+                .set_type(dpp::cot_text)
+                .set_placeholder("red, green, blue, yellow, magenta, cyan, white, black, default, 0xHEXAHERE or DECIMAL")
+                .set_min_length(1)
+                .set_max_length(20)
+                .set_text_style(dpp::text_short)
+        );
+        ev.dialog(modal, error_autoprint);
+    }
+    else if (ev.custom_id == "user-download_user_data")
+    {
+        dpp::message msg;
+        msg.set_content("Your user data:");
+        msg.add_file("user_data.json", you->to_json().dump(2));
+        msg.set_flags(64);
+        ev.reply(msg, error_autoprint);
+    }
+    else {
+        ev.reply(dpp::ir_update_message, "This interaction is unknown. Please try again later!", error_autoprint);
+    }
+}
+
+void g_on_select(const dpp::select_click_t& ev)
+{
+    const auto you = tf_user_info[ev.command.usr.id];
+    if (!you) {
+        ev.reply("Something went wrong! You do not exist?! Please report error! I'm so sorry.");
+        return;
+    }    
+
+    ev.reply("Unexpected command. How is this possible? Command id that failed: `" + ev.custom_id + "`.", error_autoprint);
+
+}
+
+void g_on_interaction(const dpp::interaction_create_t& ev)
+{
+    //ev.thinking();
+
+    const auto you = tf_user_info[ev.command.usr.id];
+    if (!you) {
+        ev.reply("Something went wrong! You do not exist?! Please report error! I'm so sorry.");
+        return;
+    }
+
+    dpp::message msg(ev.command.channel_id, "Your configuration");
+    msg.add_component(
+        dpp::component()
+            .add_component(
+                make_boolean_button(you->show_level_up_messages)
+                .set_label("Level up messages?")
+                .set_id("user-show_level_up_messages")
+            )
+    );
+    msg.add_component(
+        dpp::component()
+            .add_component(dpp::component()
+                .set_type(dpp::cot_button)
+                .set_label("Profile color: " + (you->pref_color < 0 ? "DEFAULT" : print_hex(you->pref_color)))
+                .set_style(dpp::cos_secondary)
+                .set_id("user-pref_color")
+            )
+    );
+    msg.add_component(
+        dpp::component()
+            .add_component(dpp::component()
+                .set_type(dpp::cot_button)
+                .set_label("Download your data (DM)")
+                .set_style(dpp::cos_danger)
+                .set_id("user-download_user_data")
+            )
+    );
+
+    ev.reply(msg, error_autoprint);
 }
 
 void g_tick_presence(const safe_data<general_config>& g, dpp::cluster& bot)
@@ -54,7 +169,7 @@ void g_apply_guild_local_commands(dpp::cluster& bot, const safe_data<std::vector
     });
 }
 
-void input_handler_cmd(dpp::cluster& bot, bool& _keep, safe_data<general_config>& config, safe_data<std::vector<slash_local>>& lslashes, const safe_data<slash_global>& gslash, const std::string& cmd, const timed_factory<dpp::snowflake, user_info>& tusers)
+void input_handler_cmd(dpp::cluster& bot, bool& _keep, safe_data<general_config>& config, safe_data<std::vector<slash_local>>& lslashes, const safe_data<slash_global>& gslash, const std::string& cmd)
 {
     std::string arg;
     switch(g_interp_cmd(cmd, arg)) {
@@ -251,7 +366,7 @@ void input_handler_cmd(dpp::cluster& bot, bool& _keep, safe_data<general_config>
     case commands::MEMSTATUS:
     {
         cout << console::color::GREEN << "[MAIN] Data in memory (custom data):";
-        cout << console::color::GREEN << "[MAIN] Users: " << tusers.size();
+        cout << console::color::GREEN << "[MAIN] Users: " << tf_user_info.size();
     }
         break;
     }
@@ -304,36 +419,20 @@ std::string g_smash_guild_info(const dpp::guild& g)
         "SysCHID:" + std::to_string(g.system_channel_id) + "}";
 }
 
-void setup_bot(dpp::cluster& bot, safe_data<slash_global>& sg, timed_factory<dpp::snowflake, user_info>& tu)
+void setup_bot(dpp::cluster& bot, safe_data<slash_global>& sg)
 {
     bot.on_log(g_on_log);
     bot.on_ready([&sg](const dpp::ready_t& arg){ g_on_ready(arg, sg); });
     bot.on_form_submit([&](const dpp::form_submit_t& arg){ g_on_modal(arg); });
-    bot.on_interaction_create([&](const dpp::interaction_create_t& arg) { 
-        //arg.reply("Yoo I'm still in beta."); 
-        dpp::interaction_modal_response modal("0000", "Hello there");
-        modal.add_component(
-            dpp::component()
-                .set_label("This is a label")
-                .set_id("thelabel")
-                .set_type(dpp::cot_text)
-                .set_placeholder("placeholding her")
-                .set_min_length(1)
-                .set_max_length(500)
-                .set_text_style(dpp::text_paragraph)
-        );
-        //.add_row()
-        //.add_component(
-        //    dpp::component()
-        //        .set_label("THIS IS COOOOOL")
-        //        .set_type(dpp::cot_selectmenu)
-        //        .add_select_option(dpp::select_option("Option one", "Opt1Val", "This is the option 1"))
-        //        .add_select_option(dpp::select_option("Option two", "Opt2Val", "This is the option 2"))
-        //        .add_select_option(dpp::select_option("Option three", "Opt3Val", "This is the option 3"))
-        //);
+    bot.on_button_click([&](const dpp::button_click_t& arg) { g_on_button_click(arg); });
+    bot.on_select_click([&](const dpp::select_click_t& arg) { g_on_select(arg); });
+    bot.on_interaction_create([&](const dpp::interaction_create_t& arg) { g_on_interaction(arg); });
+}
 
-        arg.dialog(modal, [](const dpp::confirmation_callback_t& conf){ if (conf.is_error()) cout << "DIALOG ERR: " << conf.http_info.body; });
-    });
+void error_autoprint(const dpp::confirmation_callback_t& err)
+{
+    if (err.is_error()) 
+        cout << console::color::RED << "Response error: " << err.http_info.body;
 }
 
 std::unique_ptr<dpp::cluster> build_bot_from(safe_data<general_config>& c)
@@ -341,4 +440,76 @@ std::unique_ptr<dpp::cluster> build_bot_from(safe_data<general_config>& c)
     return c.csafe<std::unique_ptr<dpp::cluster>>([](const general_config& g) -> std::unique_ptr<dpp::cluster> {
         return std::unique_ptr<dpp::cluster>(new dpp::cluster(g.token, g.intents, g.shard_count));
     });
+}
+
+bool change_component(std::vector<dpp::component>& vec, const std::string& key, std::function<void(dpp::component&)> doo)
+{
+    for(auto& i : vec){
+        if (i.custom_id == key) {
+            doo(i);
+            return true;
+        }
+        else if (i.components.size()) {
+            if (change_component(i.components, key, doo)) return true;
+        }
+    }
+    return false;
+}
+
+dpp::component make_boolean_button(const bool m)
+{
+    dpp::component _tmp;
+    set_boolean_button(m, _tmp);
+    return _tmp;
+}
+
+dpp::component& set_boolean_button(const bool m, dpp::component& d)
+{
+    return d
+        .set_emoji(confirm_emojis[static_cast<size_t>(m)])
+        .set_type(dpp::cot_button)
+        .set_style(m ? dpp::cos_success : dpp::cos_danger);
+}
+
+bool auto_handle_button_switch(const dpp::interaction_create_t& ev, const std::string& key, std::function<void(dpp::component&)> f)
+{
+    dpp::message cpy = ev.command.msg;
+    const bool gud = change_component(cpy.components, key, f);
+    if (!gud) { ev.reply(dpp::ir_update_message, "This interaction failed. Please try again later!", error_autoprint); return false; }
+    ev.reply(dpp::ir_update_message, cpy, error_autoprint);
+    return true;
+}
+
+int64_t interpret_color(const std::string& str)
+{
+    if (str.empty()) return -1;
+
+    else if (str.find("0x") == 0) { // HEX
+        if (str.length() <= 2) return -1;
+        char* got_on = nullptr;
+        return std::strtoll(str.c_str() + 2, &got_on, 16);
+    }
+    else if (str[0] <= '9' && str[0] >= '0') { // DEC
+        char* got_on = nullptr;
+        return std::strtoll(str.c_str(), &got_on, 10);
+    }
+    else { // literal
+        if (str == "red") return 0xFF0000;
+        if (str == "green") return 0x00FF00;
+        if (str == "blue") return 0x0000FF;
+        if (str == "yellow") return 0xFFFF00;
+        if (str == "cyan") return 0x00FFFF;
+        if (str == "magenta") return 0xFF00FF;
+        if (str == "white") return 0xFFFFFF;
+        if (str == "black") return 0x000000;
+        if (str == "default") return -1;
+    }
+    return -1;
+}
+
+std::string print_hex(const int64_t v)
+{
+    std::stringstream stream;
+    stream << std::hex << v;
+    return stream.str();
 }
