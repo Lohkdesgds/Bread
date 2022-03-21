@@ -55,6 +55,7 @@ bool change_component(std::vector<dpp::component>&, const std::string&, std::fun
 // set emoji and type
 dpp::component make_boolean_button(const bool);
 dpp::component& set_boolean_button(const bool, dpp::component&);
+dpp::message make_ephemeral_message(const std::string& = {});
 //dpp::component make_selectable_list(const std::string&, const size_t, std::vector<dpp::select_option>);
 //dpp::component& update_selectable_list(dpp::component&, const size_t, std::vector<dpp::select_option>);
 bool auto_handle_button_switch(const dpp::interaction_create_t&, const std::string&, std::function<void(dpp::component&)>);

@@ -35,7 +35,7 @@ void g_on_modal(const dpp::form_submit_t& ev)
         try {
             const auto you = tf_user_info[ev.command.usr.id];
             if (!you) {
-                ev.reply("Something went wrong! You do not exist?! Please report error! I'm so sorry.");
+                ev.reply(make_ephemeral_message("Something went wrong! You do not exist?! Please report error! I'm so sorry."));
                 return;
             }
             const std::string val = std::get<std::string>(ev.components[0].components[0].value);
@@ -47,7 +47,7 @@ void g_on_modal(const dpp::form_submit_t& ev)
             });
         }
         catch(...) {
-            ev.reply("Sorry, something went wrong! I'm so sorry.");
+            ev.reply(make_ephemeral_message("Sorry, something went wrong! I'm so sorry."));
         }
         return;
     }
@@ -63,7 +63,15 @@ void g_on_modal(const dpp::form_submit_t& ev)
 
             change_component(cpy.components, "guildconf-member_points-select_userid",  [&](dpp::component& it){
                 if (guuuuud) {
-                    it.set_label(std::to_string(literal));
+                    std::string unam = "<name not found>";
+                    {
+                        dpp::cache<dpp::user>* cach = dpp::get_user_cache();
+                        std::shared_lock<std::shared_mutex> lu(cach->get_mutex());
+                        auto fusr = std::find_if(cach->get_container().begin(), cach->get_container().end(), [&](const std::pair<dpp::snowflake, dpp::user*>& u){ return u.first == literal; });
+                        if (fusr != cach->get_container().end()) unam = fusr->second->format_username();
+                    }
+
+                    it.set_label(std::to_string(literal) + " - " + unam);
                     target_user = literal;
                     it.set_style(dpp::cos_success);
                 }
@@ -78,12 +86,12 @@ void g_on_modal(const dpp::form_submit_t& ev)
                     
                     const auto you = tf_user_info[target_user];
                     if (!you) {
-                        ev.reply("Something went wrong! You do not exist?! Please report error! I'm so sorry.");
+                        ev.reply(make_ephemeral_message("Something went wrong! You do not exist?! Please report error! I'm so sorry."));
                         return;
                     }
 
                     it.set_style(dpp::cos_secondary);
-                    it.set_label("Points: " + std::to_string(you->points_per_guild[ev.command.guild_id]));
+                    it.set_label("Points: " + std::to_string(you->points_per_guild[ev.command.guild_id]) + " (click to set new value)");
                     it.set_disabled(false);
                 }
                 else {
@@ -96,7 +104,7 @@ void g_on_modal(const dpp::form_submit_t& ev)
             ev.reply(dpp::ir_update_message, cpy, error_autoprint);
         }
         catch(...) {
-            ev.reply("Sorry, something went wrong! I'm so sorry.");
+            ev.reply(make_ephemeral_message("Sorry, something went wrong! I'm so sorry."));
         }
         return;
     }
@@ -120,13 +128,13 @@ void g_on_modal(const dpp::form_submit_t& ev)
                     
                     const auto you = tf_user_info[target_user];
                     if (!you) {
-                        ev.reply("Something went wrong! You do not exist?! Please report error! I'm so sorry.");
+                        ev.reply(make_ephemeral_message("Something went wrong! You do not exist?! Please report error! I'm so sorry."));
                         return;
                     }
 
                     you->points_per_guild[ev.command.guild_id] = literal;
                     it.set_style(dpp::cos_success);
-                    it.set_label("Points: " + std::to_string(you->points_per_guild[ev.command.guild_id]));
+                    it.set_label("Points: " + std::to_string(you->points_per_guild[ev.command.guild_id]) + " (click to set new value)");
                     it.set_disabled(false);
                 }
                 else {
@@ -139,7 +147,7 @@ void g_on_modal(const dpp::form_submit_t& ev)
             ev.reply(dpp::ir_update_message, cpy, error_autoprint);
         }
         catch(...) {
-            ev.reply("Sorry, something went wrong! I'm so sorry.");
+            ev.reply(make_ephemeral_message("Sorry, something went wrong! I'm so sorry."));
         }
         return;
     }
@@ -150,7 +158,7 @@ void g_on_modal(const dpp::form_submit_t& ev)
 
             const auto guil = tf_guild_info[ev.command.guild_id];
             if (!guil) {
-                ev.reply("Something went wrong! Guild do not exist?! Please report error! I'm so sorry.");
+                ev.reply(make_ephemeral_message("Something went wrong! Guild do not exist?! Please report error! I'm so sorry."));
                 return;
             }
 
@@ -159,10 +167,18 @@ void g_on_modal(const dpp::form_submit_t& ev)
 
             for(const auto& each : listu) {
                 if (guil->roles_when_join.size() >= guild_props::max_onjoin_roles_len) break;
-                guil->roles_when_join.push_back(each);
+                
+                if (std::find(guil->roles_when_join.begin(), guil->roles_when_join.end(), each) == guil->roles_when_join.end())
+                    guil->roles_when_join.push_back(each);
             }
 
-            cpy.content = "**Current list [" + std::to_string(guil->roles_when_join.size()) + "/" + std::to_string(guild_props::max_onjoin_roles_len) + "]:**\n```cs\n";
+            cpy.content = "**Current on join roles list [" + std::to_string(guil->roles_when_join.size()) + "/" + std::to_string(guild_props::max_onjoin_roles_len) + "]:**\n```cs\n";
+            change_component(cpy.components, "guildconf-auto_roles-del", [&](dpp::component& d){
+                d.set_disabled(guil->roles_when_join.size() == 0);
+            });
+            change_component(cpy.components, "guildconf-auto_roles-add", [&](dpp::component& d){
+                d.set_disabled(guil->roles_when_join.size() >= guild_props::max_onjoin_roles_len);
+            });
 
             if (guil->roles_when_join.size()){
                 dpp::cache<dpp::role>* cach = dpp::get_role_cache();
@@ -187,7 +203,7 @@ void g_on_modal(const dpp::form_submit_t& ev)
             ev.reply(dpp::ir_update_message, cpy, error_autoprint);
         }
         catch(...) {
-            ev.reply("Sorry, something went wrong! I'm so sorry.");
+            ev.reply(make_ephemeral_message("Sorry, something went wrong! I'm so sorry."));
         }
         return;
     }
@@ -198,7 +214,7 @@ void g_on_modal(const dpp::form_submit_t& ev)
 
             const auto guil = tf_guild_info[ev.command.guild_id];
             if (!guil) {
-                ev.reply("Something went wrong! Guild do not exist?! Please report error! I'm so sorry.");
+                ev.reply(make_ephemeral_message("Something went wrong! Guild do not exist?! Please report error! I'm so sorry."));
                 return;
             }
 
@@ -215,7 +231,13 @@ void g_on_modal(const dpp::form_submit_t& ev)
                 guil->roles_when_join.clear();
             }
 
-            cpy.content = "**Current list [" + std::to_string(guil->roles_when_join.size()) + "/" + std::to_string(guild_props::max_onjoin_roles_len) + "]:**\n```cs\n";
+            cpy.content = "**Current on join roles list [" + std::to_string(guil->roles_when_join.size()) + "/" + std::to_string(guild_props::max_onjoin_roles_len) + "]:**\n```cs\n";
+            change_component(cpy.components, "guildconf-auto_roles-del", [&](dpp::component& d){
+                d.set_disabled(guil->roles_when_join.size() == 0);
+            });
+            change_component(cpy.components, "guildconf-auto_roles-add", [&](dpp::component& d){
+                d.set_disabled(guil->roles_when_join.size() >= guild_props::max_onjoin_roles_len);
+            });
 
             if (guil->roles_when_join.size()){
                 dpp::cache<dpp::role>* cach = dpp::get_role_cache();
@@ -240,7 +262,7 @@ void g_on_modal(const dpp::form_submit_t& ev)
             ev.reply(dpp::ir_update_message, cpy, error_autoprint);
         }
         catch(...) {
-            ev.reply("Sorry, something went wrong! I'm so sorry.");
+            ev.reply(make_ephemeral_message("Sorry, something went wrong! I'm so sorry."));
         }
         return;
     }
@@ -249,25 +271,25 @@ void g_on_modal(const dpp::form_submit_t& ev)
         try {
             const std::string val = std::get<std::string>(ev.components[0].components[0].value);
             if (val.empty()) {
-                ev.reply("Hmm your string was empty? Error.");
+                ev.reply(make_ephemeral_message("Hmm your string was empty? Error."));
                 return;
             }
 
             const auto guil = tf_guild_info[ev.command.guild_id];
             if (!guil) {
-                ev.reply("Something went wrong! Guild do not exist?! Please report error! I'm so sorry.");
+                ev.reply(make_ephemeral_message("Something went wrong! Guild do not exist?! Please report error! I'm so sorry."));
                 return;
             }
 
             if (guil->roles_available.size() >= guild_props::max_role_groups) {
-                ev.reply("Can't add more!.");
+                ev.reply(make_ephemeral_message("Can't add more!."));
                 return;
             }
             
             {
                 auto it = std::find_if(guil->roles_available.begin(), guil->roles_available.end(), [&](const guild_info::category& c){ return c.name == val; });
                 if (it != guil->roles_available.end()) {
-                    ev.reply("This group already exists!");
+                    ev.reply(make_ephemeral_message("This group already exists!"));
                     return;
                 }
 
@@ -291,7 +313,7 @@ void g_on_modal(const dpp::form_submit_t& ev)
 
 
             if (guil->roles_available.size() == 0) {
-                cpy.content = "Empty config.";
+                cpy.content = "**Empty config**\nStart by creating a new role list!";
             }
             else {
                 const auto& selectd = guil->roles_available[offset];
@@ -386,7 +408,7 @@ void g_on_modal(const dpp::form_submit_t& ev)
 
         }
         catch(...) {
-            ev.reply("Sorry, something went wrong! I'm so sorry.");
+            ev.reply(make_ephemeral_message("Sorry, something went wrong! I'm so sorry."));
         }
         return;
     }
@@ -395,20 +417,20 @@ void g_on_modal(const dpp::form_submit_t& ev)
         try {
             const std::string val = std::get<std::string>(ev.components[0].components[0].value);
             if (val.empty()) {
-                ev.reply("Hmm your string was empty? Error.");
+                ev.reply(make_ephemeral_message("Hmm your string was empty? Error."));
                 return;
             }
 
             const auto guil = tf_guild_info[ev.command.guild_id];
             if (!guil) {
-                ev.reply("Something went wrong! Guild do not exist?! Please report error! I'm so sorry.");
+                ev.reply(make_ephemeral_message("Something went wrong! Guild do not exist?! Please report error! I'm so sorry."));
                 return;
             }
 
             {
                 auto it = std::find_if(guil->roles_available.begin(), guil->roles_available.end(), [&](const guild_info::category& c){ return c.name == val; });
                 if (it == guil->roles_available.end()) {
-                    ev.reply("Could not find one named like that.");
+                    ev.reply(make_ephemeral_message("Could not find one named like that."));
                     return;
                 }
 
@@ -432,7 +454,7 @@ void g_on_modal(const dpp::form_submit_t& ev)
 
 
             if (guil->roles_available.size() == 0) {
-                cpy.content = "Empty config.";
+                cpy.content = "**Empty config**\nStart by creating a new role list!";
             }
             else {
                 const auto& selectd = guil->roles_available[offset];
@@ -526,7 +548,7 @@ void g_on_modal(const dpp::form_submit_t& ev)
             ev.reply(dpp::ir_update_message, cpy, error_autoprint);
         }
         catch(...) {
-            ev.reply("Sorry, something went wrong! I'm so sorry.");
+            ev.reply(make_ephemeral_message("Sorry, something went wrong! I'm so sorry."));
         }
         return;
     }
@@ -538,18 +560,18 @@ void g_on_modal(const dpp::form_submit_t& ev)
 
             const auto guil = tf_guild_info[ev.command.guild_id];
             if (!guil) {
-                ev.reply("Something went wrong! Guild do not exist?! Please report error! I'm so sorry.");
+                ev.reply(make_ephemeral_message("Something went wrong! Guild do not exist?! Please report error! I'm so sorry."));
                 return;
             }
 
             if (guil->roles_available.size() == 0) {
-                ev.reply("You have no groups yet! Please create one first!");
+                ev.reply(make_ephemeral_message("You have no groups yet! Please create one first!"));
                 return;
             }
 
             const unsigned long long transl_val = dpp::from_string<dpp::snowflake>(val);
             if (transl_val == 0 || val2.empty()) {
-                ev.reply("Invalid input, my friend!");
+                ev.reply(make_ephemeral_message("Invalid input, my friend!"));
                 return;
             }
 
@@ -569,16 +591,17 @@ void g_on_modal(const dpp::form_submit_t& ev)
 
             
             if (thelst.list.size() >= guild_props::max_role_group_each) {
-                ev.reply("Can't add more!.");
+                ev.reply(make_ephemeral_message("Can't add more!."));
                 return;
             }
 
             auto it = std::find_if(thelst.list.begin(), thelst.list.end(), [&](const guild_info::pair_id_name& p) { return p.id == transl_val;});
             if (it == thelst.list.end()) thelst.list.push_back(guild_info::pair_id_name{ transl_val, val2 });
+            else { it->name = val2; }
             
 
             if (guil->roles_available.size() == 0) {
-                cpy.content = "Empty config.";
+                cpy.content = "**Empty config**\nStart by creating a new role list!";
             }
             else {
                 const auto& selectd = guil->roles_available[offset];
@@ -673,7 +696,7 @@ void g_on_modal(const dpp::form_submit_t& ev)
 
         }
         catch(...) {
-            ev.reply("Sorry, something went wrong! I'm so sorry.");
+            ev.reply(make_ephemeral_message("Sorry, something went wrong! I'm so sorry."));
         }
         return;
     }
@@ -684,20 +707,21 @@ void g_on_modal(const dpp::form_submit_t& ev)
 
             const auto guil = tf_guild_info[ev.command.guild_id];
             if (!guil) {
-                ev.reply("Something went wrong! Guild do not exist?! Please report error! I'm so sorry.");
+                ev.reply(make_ephemeral_message("Something went wrong! Guild do not exist?! Please report error! I'm so sorry."));
                 return;
             }
 
             if (guil->roles_available.size() == 0) {
-                ev.reply("You have no groups yet! Please create one first!");
+                ev.reply(make_ephemeral_message("You have no groups yet! Please create one first!"));
                 return;
             }
 
             const unsigned long long transl_val = val == "*" ? 0 : dpp::from_string<dpp::snowflake>(val);
             if (transl_val == 0 && val != "*") {
-                ev.reply("Invalid input, my friend!");
+                ev.reply(make_ephemeral_message("Invalid input, my friend!"));
                 return;
             }
+
             dpp::message cpy = ev.command.msg;
             size_t offset = 0;
 
@@ -718,12 +742,12 @@ void g_on_modal(const dpp::form_submit_t& ev)
                 if (it != thelst.list.end()) thelst.list.erase(it);
             }
             else {
-                guil->roles_when_join.clear();
+                thelst.list.clear();
             }
 
 
             if (guil->roles_available.size() == 0) {
-                cpy.content = "Empty config.";
+                cpy.content = "**Empty config**\nStart by creating a new role list!";
             }
             else {
                 const auto& selectd = guil->roles_available[offset];
@@ -819,12 +843,12 @@ void g_on_modal(const dpp::form_submit_t& ev)
 
         }
         catch(...) {
-            ev.reply("Sorry, something went wrong! I'm so sorry.");
+            ev.reply(make_ephemeral_message("Sorry, something went wrong! I'm so sorry."));
         }
         return;
     }
     
-    ev.reply("Sorry, something went wrong! I can't find what to do. Please report!");
+    ev.reply(make_ephemeral_message("Sorry, something went wrong! I can't find what to do. Please report!"));
 }
 
 void g_on_button_click(const dpp::button_click_t& ev)
@@ -833,7 +857,7 @@ void g_on_button_click(const dpp::button_click_t& ev)
     {
         const auto you = tf_user_info[ev.command.usr.id];
         if (!you) {
-            ev.reply("Something went wrong! You do not exist?! Please report error! I'm so sorry.");
+            ev.reply(make_ephemeral_message("Something went wrong! You do not exist?! Please report error! I'm so sorry."));
             return;
         }
 
@@ -861,7 +885,7 @@ void g_on_button_click(const dpp::button_click_t& ev)
     {
         const auto you = tf_user_info[ev.command.usr.id];
         if (!you) {
-            ev.reply("Something went wrong! You do not exist?! Please report error! I'm so sorry.");
+            ev.reply(make_ephemeral_message("Something went wrong! You do not exist?! Please report error! I'm so sorry."));
             return;
         }
 
@@ -875,7 +899,7 @@ void g_on_button_click(const dpp::button_click_t& ev)
     {
         const auto guil = tf_guild_info[ev.command.guild_id];
         if (!guil) {
-            ev.reply("Something went wrong! Guild do not exist?! Please report error! I'm so sorry.");
+            ev.reply(make_ephemeral_message("Something went wrong! Guild do not exist?! Please report error! I'm so sorry."));
             return;
         }
 
@@ -1029,7 +1053,7 @@ void g_on_select(const dpp::select_click_t& ev)
 
             const auto guil = tf_guild_info[ev.command.guild_id];
             if (!guil) {
-                ev.reply("Something went wrong! Guild do not exist?! Please report error! I'm so sorry.");
+                ev.reply(make_ephemeral_message("Something went wrong! Guild do not exist?! Please report error! I'm so sorry."));
                 return;
             }
 
@@ -1044,11 +1068,11 @@ void g_on_select(const dpp::select_click_t& ev)
 
             const auto guil = tf_guild_info[ev.command.guild_id];
             if (!guil) {
-                ev.reply("Something went wrong! Guild do not exist?! Please report error! I'm so sorry.");
+                ev.reply(make_ephemeral_message("Something went wrong! Guild do not exist?! Please report error! I'm so sorry."));
                 return;
             }
 
-            dpp::message msg(ev.command.channel_id, "Paste command configuration");
+            dpp::message msg(ev.command.channel_id, "**Paste command configuration**");
             msg.add_component(
                 dpp::component()
                     .add_component(
@@ -1062,7 +1086,7 @@ void g_on_select(const dpp::select_click_t& ev)
             return;
         }
         else if (selected == "guildconf-member_points"){ // Show buttons "select user", "set value/`$current_value`"
-            dpp::message msg(ev.command.channel_id, "Handle a user's point");
+            dpp::message msg(ev.command.channel_id, "**Handle a user's point in this guild**");
             msg.add_component(
                 dpp::component()
                     .add_component(dpp::component()
@@ -1087,13 +1111,13 @@ void g_on_select(const dpp::select_click_t& ev)
 
             const auto guil = tf_guild_info[ev.command.guild_id];
             if (!guil) {
-                ev.reply("Something went wrong! Guild do not exist?! Please report error! I'm so sorry.");
+                ev.reply(make_ephemeral_message("Something went wrong! Guild do not exist?! Please report error! I'm so sorry."));
                 return;
             }
 
             size_t offset = 0;
 
-            dpp::message msg(ev.command.channel_id, "Role commands");
+            dpp::message msg(ev.command.channel_id, "**Role commands**");
 
             if (guil->roles_available.size()) {
                 dpp::component clist;
@@ -1153,7 +1177,7 @@ void g_on_select(const dpp::select_click_t& ev)
             );
 
             if (guil->roles_available.size() == 0) {
-                msg.content = "Empty config.";
+                msg.content = "**Empty config**\nStart by creating a new role list!";
             }
             else {
                 const auto& selectd = guil->roles_available[offset];
@@ -1193,17 +1217,18 @@ void g_on_select(const dpp::select_click_t& ev)
 
             const auto guil = tf_guild_info[ev.command.guild_id];
             if (!guil) {
-                ev.reply("Something went wrong! Guild do not exist?! Please report error! I'm so sorry.");
+                ev.reply(make_ephemeral_message("Something went wrong! Guild do not exist?! Please report error! I'm so sorry."));
                 return;
             }
 
-            dpp::message msg(ev.command.channel_id, "Automatic roles on join");
+            dpp::message msg(ev.command.channel_id, "**Automatic roles on join**");
             msg.add_component(
                 dpp::component()
                     .add_component(dpp::component()
                         .set_type(dpp::cot_button)
                         .set_style(dpp::cos_primary)
                         .set_label("Add a role to the list")
+                        .set_disabled(guil->roles_when_join.size() >= guild_props::max_onjoin_roles_len)
                         .set_id("guildconf-auto_roles-add")
                         .set_emoji("🆕")
                     )
@@ -1211,12 +1236,13 @@ void g_on_select(const dpp::select_click_t& ev)
                         .set_type(dpp::cot_button)
                         .set_style(dpp::cos_secondary)
                         .set_label("Remove a role from the list")
+                        .set_disabled(guil->roles_when_join.size() == 0)
                         .set_id("guildconf-auto_roles-del")
                         .set_emoji("🗑️")
                     )
             );
 
-            msg.content = "**Current list [" + std::to_string(guil->roles_when_join.size()) + "/" + std::to_string(guild_props::max_onjoin_roles_len) + "]:**\n```cs\n";
+            msg.content = "**Current on join roles list [" + std::to_string(guil->roles_when_join.size()) + "/" + std::to_string(guild_props::max_onjoin_roles_len) + "]:**\n```cs\n";
 
             if (guil->roles_when_join.size()){
                 dpp::cache<dpp::role>* cach = dpp::get_role_cache();
@@ -1251,7 +1277,7 @@ void g_on_select(const dpp::select_click_t& ev)
 
         const auto guil = tf_guild_info[ev.command.guild_id];
         if (!guil) {
-            ev.reply("Something went wrong! Guild do not exist?! Please report error! I'm so sorry.");
+            ev.reply(make_ephemeral_message("Something went wrong! Guild do not exist?! Please report error! I'm so sorry."));
             return;
         }
 
@@ -1272,7 +1298,7 @@ void g_on_select(const dpp::select_click_t& ev)
             clist.add_select_option(dpp::select_option(each.name, each.name, "Select to manage it"));
         }
 
-        dpp::message msg(ev.command.channel_id, "Role commands");
+        dpp::message msg(ev.command.channel_id, "**Role commands**");
         msg.add_component(
             dpp::component().add_component(clist)
         )
@@ -1320,7 +1346,7 @@ void g_on_select(const dpp::select_click_t& ev)
         );
 
         if (guil->roles_available.size() == 0) {
-            msg.content = "Empty config.";
+                msg.content = "**Empty config**\nStart by creating a new role list!";
         }
         else {
             const auto& selectd = guil->roles_available[offset];
@@ -1356,7 +1382,7 @@ void g_on_select(const dpp::select_click_t& ev)
         ev.reply(dpp::ir_update_message, msg, error_autoprint);
         return;
     }
-    ev.reply("Unexpected command. How is this possible? Command id that failed: `" + ev.custom_id + "`.", error_autoprint);
+    ev.reply(make_ephemeral_message("Unexpected command. How is this possible? Command id that failed: `" + ev.custom_id + "`."));
     
 
 
@@ -1364,7 +1390,7 @@ void g_on_select(const dpp::select_click_t& ev)
 
     //const auto you = tf_user_info[ev.command.usr.id];
     //if (!you) {
-    //    ev.reply("Something went wrong! You do not exist?! Please report error! I'm so sorry.");
+    //    ev.reply(make_ephemeral_message("Something went wrong! You do not exist?! Please report error! I'm so sorry.");
     //    return;
     //}    
 
@@ -1388,7 +1414,7 @@ void g_on_interaction(const dpp::interaction_create_t& ev)
 
     const auto you = tf_user_info[ev.command.usr.id];
     if (!you) {
-        ev.reply("Something went wrong! You do not exist?! Please report error! I'm so sorry.");
+        ev.reply(make_ephemeral_message("Something went wrong! You do not exist?! Please report error! I'm so sorry."));
         return;
     }
 
@@ -1422,7 +1448,7 @@ void g_on_interaction(const dpp::interaction_create_t& ev)
     }
 
     if (!went_good) {
-        ev.reply("Oh no, something went wrong. I can't remember what I should do in this case. Please report! :(");
+        ev.reply(make_ephemeral_message("Oh no, something went wrong. I can't remember what I should do in this case. Please report! :("));
     }
         
 }
@@ -1751,6 +1777,14 @@ dpp::component& set_boolean_button(const bool m, dpp::component& d)
         .set_style(m ? dpp::cos_success : dpp::cos_danger);
 }
 
+dpp::message make_ephemeral_message(const std::string& str)
+{
+    dpp::message msg;
+    msg.set_content(str);
+    msg.set_flags(64);
+    return msg;
+}
+
 //dpp::component make_selectable_list(const std::string& listkey, const size_t page, std::vector<dpp::select_option> lst)
 //{
 //    dpp::component selector;
@@ -1931,7 +1965,7 @@ bool run_botstatus(const dpp::interaction_create_t& ev, const dpp::command_inter
             "Memory usage now", (u8"🧠 " + std::to_string(resident_mb) + " MB"), true
         )
         .add_field(
-            "Users/Guilds in cache", (u8"🐱 " + std::to_string(tf_user_info.size()) + u8" — " + std::to_string(0) + u8" 🐏"), true
+            "Users/Guilds in cache", (u8"🐱 " + std::to_string(tf_user_info.size()) + u8" — " + std::to_string(tf_guild_info.size()) + u8" 🐏"), true
         )
         .add_field(
             "Current DPP version", (u8"🤖 " + std::string(DPP_VERSION_TEXT)), false
@@ -1950,11 +1984,11 @@ bool run_self(const dpp::interaction_create_t& ev)
 {
     const auto you = tf_user_info[ev.command.usr.id];
     if (!you) {
-        ev.reply("Something went wrong! You do not exist?! Please report error! I'm so sorry.");
+        ev.reply(make_ephemeral_message("Something went wrong! You do not exist?! Please report error! I'm so sorry."));
         return true;
     }
 
-    dpp::message msg(ev.command.channel_id, "Your configuration");
+    dpp::message msg(ev.command.channel_id, "**Your configuration**");
     msg.add_component(
         dpp::component()
             .add_component(
@@ -2014,7 +2048,7 @@ bool run_ping(const dpp::interaction_create_t& ev)
 bool run_config_server(const dpp::interaction_create_t& ev, const dpp::command_interaction& cmd)
 {
     if (!is_member_admin(ev.command.member)) {
-        ev.reply("I think you're not an admin or cache is not up to date :(");
+        ev.reply(make_ephemeral_message("I think you're not an admin or cache is not up to date :("));
         return true;
     }
 
