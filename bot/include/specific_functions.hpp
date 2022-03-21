@@ -70,3 +70,5 @@ bool run_self(const dpp::interaction_create_t&);
 bool run_poll(const dpp::interaction_create_t&, const dpp::command_interaction&);
 bool run_ping(const dpp::interaction_create_t&);
 bool run_config_server(const dpp::interaction_create_t&, const dpp::command_interaction&);
+bool run_copy(const dpp::interaction_create_t&, const dpp::command_interaction&);
+bool run_paste(const dpp::interaction_create_t&, const dpp::command_interaction&);

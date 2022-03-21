@@ -51,6 +51,96 @@ void g_on_modal(const dpp::form_submit_t& ev)
         }
         return;
     }
+    else if (ev.custom_id == "paste-comment") {
+        try {
+            const auto you = tf_user_info[ev.command.usr.id];
+            if (!you) {
+                ev.reply(make_ephemeral_message("Something went wrong! You do not exist?! Please report error! I'm so sorry."));
+                return;
+            }
+            const auto guil = tf_guild_info[ev.command.guild_id];
+            if (!guil) {
+                ev.reply(make_ephemeral_message("Something went wrong! Guild do not exist?! Please report error! I'm so sorry."));
+                return;
+            }
+
+            auto& clipboard = you->clipboard;
+
+            if (clipboard.guild_id != ev.command.guild_id && !guil->allow_external_paste)
+            {
+                ev.reply(make_ephemeral_message("This server doesn't allow paste from external sources."));
+                return;   
+            }
+
+            const std::string paste_content = std::get<std::string>(ev.components[0].components[0].value);
+                        
+            dpp::message replying;
+            replying.id = ev.command.id;
+            replying.channel_id = ev.command.channel_id;
+            replying.set_type(dpp::message_type::mt_application_command);
+            ev.reply(dpp::interaction_response_type::ir_deferred_channel_message_with_source, replying);
+
+            ev.from->creator->message_get(clipboard.message_id, clipboard.channel_id, [ev, you, guil, replying, paste_content](const dpp::confirmation_callback_t data) mutable {
+                auto& clipboard = you->clipboard;
+
+                if (data.is_error()) {
+                    ev.reply(make_ephemeral_message("I couldn't get clipboard source! Is it not available anymore?"));
+                    you->clipboard.clear();
+                    return;
+                }
+
+                replying.set_flags(0);
+
+                dpp::message sourcemsg = std::get<dpp::message>(data.value);
+
+                dpp::embed emb;
+                dpp::embed_author authr;
+                authr.icon_url = images::url_author_icon_clipboard;
+                authr.name = "Access source directly";
+                authr.url = clipboard.generate_url();
+
+                dpp::embed_footer emb_footer;
+                emb_footer.set_text("Referenced by " + ev.command.usr.format_username() +
+                    ", Source: " + sourcemsg.author.format_username() +
+                    ", Guild #" + std::to_string(clipboard.guild_id));
+
+                emb_footer.set_icon(ev.command.usr.get_avatar_url(256));
+
+                emb.set_author(authr);
+                emb.set_color((you->pref_color < 0 ? random() : you->pref_color) % 0xFFFFFF);
+                emb.set_footer(emb_footer);
+
+                if (!paste_content.empty()){
+                    emb.description += "`Commented:`\n```\n";
+                    for (const auto& i : paste_content.substr(0, 280)) { if (i != '`') emb.description += i; }
+                    emb.description += "```\n";
+                }
+
+                if (!sourcemsg.content.empty()) {
+                    emb.description += "`Original text:`\n```\n";
+                    for (const auto& i : sourcemsg.content) { if (i != '`') emb.description += i; }
+                    emb.description += "```\n";
+                }
+
+                if (sourcemsg.attachments.size()) {
+                    emb.set_image(sourcemsg.attachments[0].url);
+                }
+
+                if (sourcemsg.embeds.size()) emb.description += "`Original message embeds below:`";
+
+                replying.add_embed(emb);
+
+                for(const auto& i : sourcemsg.embeds) replying.add_embed(i);
+
+                ev.edit_response(replying);
+            });
+
+        }
+        catch(...) {
+            ev.reply(make_ephemeral_message("Sorry, something went wrong! I'm so sorry."));
+        }
+        return;
+    }
     else if (ev.custom_id == "guildconf-member_points-select_userid")
     {
         try {
@@ -1428,6 +1518,7 @@ void g_on_interaction(const dpp::interaction_create_t& ev)
             went_good = run_config_server(ev, cmd);
             break;
         case discord_slashcommands::PASTE:
+            went_good = run_paste(ev, cmd);
             break;
         case discord_slashcommands::PING:
             went_good = run_ping(ev);
@@ -1442,6 +1533,7 @@ void g_on_interaction(const dpp::interaction_create_t& ev)
         case discord_slashcommands::RC_SHOWINFO:
             break;
         case discord_slashcommands::RC_COPY:
+            went_good = run_copy(ev, cmd);
             break;
         default:
             break;
@@ -2071,5 +2163,60 @@ bool run_config_server(const dpp::interaction_create_t& ev, const dpp::command_i
 
     msg.set_flags(64);
     ev.reply(msg, error_autoprint);
+    return true;
+}
+
+bool run_copy(const dpp::interaction_create_t& ev, const dpp::command_interaction& cmd)
+{
+    const auto you = tf_user_info[ev.command.usr.id];
+    if (!you) {
+        ev.reply(make_ephemeral_message("Something went wrong! You do not exist?! Please report error! I'm so sorry."));
+        return true;
+    }
+
+    you->clipboard.message_id = cmd.target_id;
+    you->clipboard.channel_id = ev.command.channel_id;
+    you->clipboard.guild_id = ev.command.guild_id;
+
+    ev.reply(make_ephemeral_message("Copied message to clipboard! Use /paste somewhere to paste a reference to it!"));
+    return true;
+}
+
+bool run_paste(const dpp::interaction_create_t& ev, const dpp::command_interaction& cmd)
+{
+    const auto you = tf_user_info[ev.command.usr.id];
+    if (!you) {
+        ev.reply(make_ephemeral_message("Something went wrong! You do not exist?! Please report error! I'm so sorry."));
+        return true;
+    }
+    const auto guil = tf_guild_info[ev.command.guild_id];
+    if (!guil) {
+        ev.reply(make_ephemeral_message("Something went wrong! Guild do not exist?! Please report error! I'm so sorry."));
+        return true;
+    }
+
+    if (!you->clipboard.has_data()) {
+        ev.reply(make_ephemeral_message("You haven't copy a message yet! Try right click on one and Apps -> Copy to clipboard!"));
+        return true;
+    }
+
+    if (you->clipboard.guild_id != ev.command.guild_id && !guil->allow_external_paste)
+    {
+        ev.reply(make_ephemeral_message("This server doesn't allow paste from external sources."));
+        return true;
+    }
+
+    dpp::interaction_modal_response modal("paste-comment", "Paste options");
+    modal.add_component(
+        dpp::component()
+            .set_label("Comment? (optional)")
+            .set_id("string")
+            .set_type(dpp::cot_text)
+            .set_placeholder("KEKW look at that dude doing poggers")
+            .set_min_length(0)
+            .set_max_length(280)
+            .set_text_style(dpp::text_paragraph)
+    );
+    ev.dialog(modal, error_autoprint);
     return true;
 }
