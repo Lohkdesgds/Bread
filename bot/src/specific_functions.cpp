@@ -38,13 +38,39 @@ void g_on_modal(const dpp::form_submit_t& ev)
                 ev.reply(make_ephemeral_message("Something went wrong! You do not exist?! Please report error! I'm so sorry."));
                 return;
             }
-            const std::string val = std::get<std::string>(ev.components[0].components[0].value);
+            const std::string val = get_customid_as_str(ev.components, "color");
             const int64_t sel = interpret_color(val);
             
             auto_handle_button_switch(ev, ev.custom_id, [&](dpp::component& it){
                 you->pref_color = sel;
                 it.set_label("Profile color: " + (you->pref_color < 0 ? "DEFAULT" : print_hex(you->pref_color)));
             });
+        }
+        catch(...) {
+            ev.reply(make_ephemeral_message("Sorry, something went wrong! I'm so sorry."));
+        }
+        return;
+    }
+    else if (ev.custom_id == "poll-create") {
+        try {
+            const auto you = tf_user_info[ev.command.usr.id];
+            if (!you) {
+                ev.reply(make_ephemeral_message("Something went wrong! You do not exist?! Please report error! I'm so sorry."));
+                return;
+            }
+
+            const std::string title = get_customid_as_str(ev.components, "title");
+            const std::string desc = get_customid_as_str(ev.components, "desc");
+            const std::string emojis = get_customid_as_str(ev.components, "emojis");
+            const std::string imglink = get_customid_as_str(ev.components, "imglink");
+            const std::string color = get_customid_as_str(ev.components, "color");
+
+            ev.reply(make_ephemeral_message("In the works!\nTITLE: " + title + "\nDESC: " + desc + "\nEMOJIS: " + emojis + "\nIMGLINK: " + imglink + "\nCOLOR: " + color));
+
+
+
+
+
         }
         catch(...) {
             ev.reply(make_ephemeral_message("Sorry, something went wrong! I'm so sorry."));
@@ -72,7 +98,7 @@ void g_on_modal(const dpp::form_submit_t& ev)
                 return;   
             }
 
-            const std::string paste_content = std::get<std::string>(ev.components[0].components[0].value);
+            const std::string paste_content = get_customid_as_str(ev.components, "comment");
                         
             dpp::message replying;
             replying.id = ev.command.id;
@@ -144,7 +170,7 @@ void g_on_modal(const dpp::form_submit_t& ev)
     else if (ev.custom_id == "guildconf-member_points-select_userid")
     {
         try {
-            const std::string val = std::get<std::string>(ev.components[0].components[0].value);
+            const std::string val = get_customid_as_str(ev.components, "number");
             unsigned long long literal = 0;
             const bool guuuuud = (val.find("-") == std::string::npos) && (sscanf(val.c_str(), "%llu", &literal) == 1);
 
@@ -201,7 +227,7 @@ void g_on_modal(const dpp::form_submit_t& ev)
     else if (ev.custom_id == "guildconf-member_points-select_userpts")
     {
         try {
-            const std::string val = std::get<std::string>(ev.components[0].components[0].value);
+            const std::string val = get_customid_as_str(ev.components, "number");
             unsigned long long literal = 0;
             const bool guuuuud = (val.find("-") == std::string::npos) && (sscanf(val.c_str(), "%llu", &literal) == 1);
 
@@ -244,7 +270,7 @@ void g_on_modal(const dpp::form_submit_t& ev)
     else if (ev.custom_id == "guildconf-auto_roles-add")
     {
         try {
-            const std::string val = std::get<std::string>(ev.components[0].components[0].value);
+            const std::string val = get_customid_as_str(ev.components, "paragraph");
 
             const auto guil = tf_guild_info[ev.command.guild_id];
             if (!guil) {
@@ -300,7 +326,7 @@ void g_on_modal(const dpp::form_submit_t& ev)
     else if (ev.custom_id == "guildconf-auto_roles-del")
     {
         try {
-            const std::string val = std::get<std::string>(ev.components[0].components[0].value);
+            const std::string val = get_customid_as_str(ev.components, "paragraph");
 
             const auto guil = tf_guild_info[ev.command.guild_id];
             if (!guil) {
@@ -359,7 +385,7 @@ void g_on_modal(const dpp::form_submit_t& ev)
     else if (ev.custom_id == "guildconf-roles_command-addgroup")
     {
         try {
-            const std::string val = std::get<std::string>(ev.components[0].components[0].value);
+            const std::string val = get_customid_as_str(ev.components, "name");
             if (val.empty()) {
                 ev.reply(make_ephemeral_message("Hmm your string was empty? Error."));
                 return;
@@ -505,7 +531,7 @@ void g_on_modal(const dpp::form_submit_t& ev)
     else if (ev.custom_id == "guildconf-roles_command-delgroup")
     {
         try {
-            const std::string val = std::get<std::string>(ev.components[0].components[0].value);
+            const std::string val = get_customid_as_str(ev.components, "name");
             if (val.empty()) {
                 ev.reply(make_ephemeral_message("Hmm your string was empty? Error."));
                 return;
@@ -644,9 +670,9 @@ void g_on_modal(const dpp::form_submit_t& ev)
     }
     else if (ev.custom_id == "guildconf-roles_command-add")
     {
-        try {
-            const std::string val = std::get<std::string>(ev.components[0].components[0].value); // Role ID
-            const std::string val2 = std::get<std::string>(ev.components[1].components[0].value); // Role naming
+        try { // get_customid_as_str
+            const std::string val = get_customid_as_str(ev.components, "roleid"); // Role ID
+            const std::string val2 = get_customid_as_str(ev.components, "name"); // Role naming
 
             const auto guil = tf_guild_info[ev.command.guild_id];
             if (!guil) {
@@ -793,7 +819,7 @@ void g_on_modal(const dpp::form_submit_t& ev)
     else if (ev.custom_id == "guildconf-roles_command-del")
     {
         try {
-            const std::string val = std::get<std::string>(ev.components[0].components[0].value); // Role ID
+            const std::string val = get_customid_as_str(ev.components, "roleid"); // Role ID
 
             const auto guil = tf_guild_info[ev.command.guild_id];
             if (!guil) {
@@ -964,6 +990,7 @@ void g_on_button_click(const dpp::button_click_t& ev)
                 .set_label("What color best describes you?")
                 .set_id("color")
                 .set_type(dpp::cot_text)
+                .set_required(true)
                 .set_placeholder("red, green, blue, ..., black, default, 0xHEX or DECIMAL")
                 .set_min_length(1)
                 .set_max_length(20)
@@ -1006,6 +1033,7 @@ void g_on_button_click(const dpp::button_click_t& ev)
                 .set_label("Enter a numeric user ID")
                 .set_id("number")
                 .set_type(dpp::cot_text)
+                .set_required(true)
                 .set_placeholder("0123456789...")
                 .set_min_length(1)
                 .set_max_length(20)
@@ -1021,6 +1049,7 @@ void g_on_button_click(const dpp::button_click_t& ev)
                 .set_label("Set this user points on this guild")
                 .set_id("number")
                 .set_type(dpp::cot_text)
+                .set_required(true)
                 .set_placeholder("A number")
                 .set_min_length(1)
                 .set_max_length(20)
@@ -1036,6 +1065,7 @@ void g_on_button_click(const dpp::button_click_t& ev)
                 .set_label("Paste IDs here")
                 .set_id("paragraph")
                 .set_type(dpp::cot_text)
+                .set_required(true)
                 .set_placeholder("123456...")
                 .set_min_length(1)
                 .set_max_length(512)
@@ -1051,6 +1081,7 @@ void g_on_button_click(const dpp::button_click_t& ev)
                 .set_label("Paste IDs or * to delete all.")
                 .set_id("paragraph")
                 .set_type(dpp::cot_text)
+                .set_required(true)
                 .set_placeholder("123456...")
                 .set_min_length(1)
                 .set_max_length(512)
@@ -1064,8 +1095,9 @@ void g_on_button_click(const dpp::button_click_t& ev)
         modal.add_component(
             dpp::component()
                 .set_label("Give it a name")
-                .set_id("string")
+                .set_id("name")
                 .set_type(dpp::cot_text)
+                .set_required(true)
                 .set_placeholder("Funky group")
                 .set_min_length(1)
                 .set_max_length(20)
@@ -1079,8 +1111,9 @@ void g_on_button_click(const dpp::button_click_t& ev)
         modal.add_component(
             dpp::component()
                 .set_label("Tell me its name")
-                .set_id("string")
+                .set_id("name")
                 .set_type(dpp::cot_text)
+                .set_required(true)
                 .set_placeholder("Funky group")
                 .set_min_length(1)
                 .set_max_length(20)
@@ -1094,8 +1127,9 @@ void g_on_button_click(const dpp::button_click_t& ev)
         modal.add_component(
             dpp::component()
                 .set_label("Role ID")
-                .set_id("string1")
+                .set_id("roleid")
                 .set_type(dpp::cot_text)
+                .set_required(true)
                 .set_placeholder("123456...")
                 .set_min_length(1)
                 .set_max_length(20)
@@ -1105,8 +1139,9 @@ void g_on_button_click(const dpp::button_click_t& ev)
         .add_component(
             dpp::component()
                 .set_label("Name to show")
-                .set_id("string2")
+                .set_id("name")
                 .set_type(dpp::cot_text)
+                .set_required(true)
                 .set_placeholder("My cool role")
                 .set_min_length(1)
                 .set_max_length(40)
@@ -1120,8 +1155,9 @@ void g_on_button_click(const dpp::button_click_t& ev)
         modal.add_component(
             dpp::component()
                 .set_label("Paste ID or * to delete all.")
-                .set_id("string")
+                .set_id("roleid")
                 .set_type(dpp::cot_text)
+                .set_required(true)
                 .set_placeholder("123456...")
                 .set_min_length(1)
                 .set_max_length(20)
@@ -1524,6 +1560,7 @@ void g_on_interaction(const dpp::interaction_create_t& ev)
             went_good = run_ping(ev);
             break;
         case discord_slashcommands::POLL:
+            went_good = run_poll(ev, cmd);
             break;
         case discord_slashcommands::ROLES:
             break;
@@ -1854,6 +1891,25 @@ bool change_component(std::vector<dpp::component>& vec, const std::string& key, 
     return false;
 }
 
+std::string get_customid_as_str(const std::vector<dpp::component>& v, const std::string& key)
+{
+    for(const auto& i : v) {
+        if (i.custom_id == key) {
+            try {
+                return std::get<std::string>(i.value);
+            }
+            catch(...) {
+                return {};
+            }
+        }
+        if (i.components.size()) {
+            auto _str = get_customid_as_str(i.components, key);
+            if (_str.size()) return _str;
+        }
+    }
+    return {};
+}
+
 dpp::component make_boolean_button(const bool m)
 {
     dpp::component _tmp;
@@ -2115,11 +2171,56 @@ bool run_self(const dpp::interaction_create_t& ev)
 
 bool run_poll(const dpp::interaction_create_t& ev, const dpp::command_interaction& cmd)
 {
-    // color
-    // link
-    // emojis
-    // title
-    // text
+    dpp::interaction_modal_response modal("poll-create", "Create a poll");
+    modal
+    .add_component(
+        dpp::component()
+            .set_label("Title of the poll (required)")
+            .set_id("title")
+            .set_type(dpp::cot_text)
+            .set_required(true)
+            .set_placeholder("Best food worldwide?")
+            .set_min_length(1)
+            .set_max_length(60)
+            .set_text_style(dpp::text_short)
+    ).add_row().add_component(
+        dpp::component()
+            .set_label("Describe your question (optional)")
+            .set_id("desc")
+            .set_type(dpp::cot_text)
+            .set_placeholder("Bananas are way cooler than tomatoes. Aren't they? Sure they are. Do you agree?")
+            .set_min_length(0)
+            .set_max_length(2000)
+            .set_text_style(dpp::text_paragraph)
+    ).add_row().add_component(
+        dpp::component()
+            .set_label("Emojis to add as reaction (optional)")
+            .set_id("emojis")
+            .set_type(dpp::cot_text)
+            .set_placeholder("👍;👎;... (blank for 👍;👎)")
+            .set_min_length(0)
+            .set_max_length(60)
+            .set_text_style(dpp::text_short)
+    ).add_row().add_component(
+        dpp::component()
+            .set_label("Image link (optional)")
+            .set_id("imglink")
+            .set_type(dpp::cot_text)
+            .set_placeholder("https://myimage.notarealurl/image.png (blank for \"?\")")
+            .set_min_length(0)
+            .set_max_length(120)
+            .set_text_style(dpp::text_short)
+    ).add_row().add_component(
+        dpp::component()
+            .set_label("Color (optional)")
+            .set_id("color")
+            .set_type(dpp::cot_text)
+            .set_placeholder("(blank for user color) red, green, ..., black, default, 0xHEX or DECIMAL")
+            .set_min_length(0)
+            .set_max_length(20)
+            .set_text_style(dpp::text_short)
+    );
+    ev.dialog(modal, error_autoprint);
     return true;
 }
 
@@ -2210,7 +2311,7 @@ bool run_paste(const dpp::interaction_create_t& ev, const dpp::command_interacti
     modal.add_component(
         dpp::component()
             .set_label("Comment? (optional)")
-            .set_id("string")
+            .set_id("comment")
             .set_type(dpp::cot_text)
             .set_placeholder("KEKW look at that dude doing poggers")
             .set_min_length(0)

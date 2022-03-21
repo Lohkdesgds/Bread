@@ -52,6 +52,7 @@ void setup_bot(dpp::cluster&, safe_data<slash_global>&);
 void error_autoprint(const dpp::confirmation_callback_t&);
 std::unique_ptr<dpp::cluster> build_bot_from(safe_data<general_config>&);
 bool change_component(std::vector<dpp::component>&, const std::string&, std::function<void(dpp::component&)>);
+std::string get_customid_as_str(const std::vector<dpp::component>&, const std::string&);
 // set emoji and type
 dpp::component make_boolean_button(const bool);
 dpp::component& set_boolean_button(const bool, dpp::component&);
