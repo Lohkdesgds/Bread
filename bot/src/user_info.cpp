@@ -68,16 +68,16 @@ void user_info::from_json(const nlohmann::json& j)
     find_json_autoabort(j, "points", points);
     find_json_autoabort(j, "last_points_earned", last_points_earned);
     find_json_autoabort(j, "messages_sent", messages_sent);
-    find_json_array_autoabort(j, "messages_sent_per_guild", messages_sent_per_guild);
+    find_json_array_autoabort<std::pair<mull,mull>>(j, "messages_sent_per_guild", messages_sent_per_guild);
     find_json_autoabort(j, "attachments_sent", attachments_sent);
-    find_json_array_autoabort(j, "attachments_sent_per_guild", attachments_sent_per_guild);
+    find_json_array_autoabort<std::pair<mull,mull>>(j, "attachments_sent_per_guild", attachments_sent_per_guild);
     find_json_autoabort(j, "commands_used", commands_used);
     find_json_autoabort(j, "pref_color", pref_color);
     find_json_autoabort(j, "times_they_got_positive_points", times_they_got_positive_points);
     find_json_autoabort(j, "times_they_got_negative_points", times_they_got_negative_points);
     if (j.contains("clipboard")) clipboard.from_json(j["clipboard"]);
     find_json_autoabort(j, "show_level_up_messages", show_level_up_messages);
-    find_json_array_autoabort(j, "points_per_guild", points_per_guild);
+    find_json_array_autoabort<std::pair<mull,mull>>(j, "points_per_guild", points_per_guild);
 }
 
 user_info::user_info(const dpp::snowflake& id)
@@ -97,7 +97,7 @@ user_info::~user_info()
 {
     std::ofstream cfile(needed_paths[user_props::user_path_off] + std::to_string(__user_id));
     if (!cfile.is_open() || !cfile.good()) {
-        cout << console::color::RED << "FATAL ERROR: Can't save user #" << __user_id;
+        Lunaris::cout << Lunaris::console::color::RED << "FATAL ERROR: Can't save user #" << __user_id;
         return;
     }
 

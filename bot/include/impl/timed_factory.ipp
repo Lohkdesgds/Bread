@@ -73,6 +73,13 @@ inline void timed_factory<Key, VarType>::free_freeable()
 }
 
 template<typename Key, typename VarType>
+inline void timed_factory<Key, VarType>::free_all()
+{
+    std::unique_lock<std::shared_mutex> lu(shr);
+    objs.clear();
+}
+
+template<typename Key, typename VarType>
 inline void timed_factory<Key, VarType>::set_free_time(std::chrono::seconds t)
 {
     if (t.count() >= 10) delta_for_kill = t;

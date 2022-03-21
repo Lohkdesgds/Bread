@@ -4,6 +4,7 @@
 #include <dpp/nlohmann/json.hpp>
 #include <dpp/fmt/format.h>
 #include <console.h>
+#include <bomb.h>
 
 using namespace Lunaris;
 
@@ -20,6 +21,7 @@ public:
 
     void update_bot_id(const dpp::cluster&);
 
+    void remove_global(dpp::cluster&) const;
     void apply_bulk(dpp::cluster&) const;
 };
 

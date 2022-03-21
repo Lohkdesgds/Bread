@@ -12,12 +12,13 @@
 #include <bomb.h>
 
 #include <defaults.hpp>
+#include <process_info.hpp>
 #include <general_config.hpp>
 #include <safe_template.hpp>
 #include <slashing.hpp>
-#include <defaults.hpp>
 #include <timed_factory.hpp>
-#include <user_info.hpp>
 #include <general_functions.hpp>
-
-inline timed_factory<dpp::snowflake, user_info> tf_user_info;
+#include <user_info.hpp>
+#include <guild_info.hpp>
+#include <global_stuff_oh_no.hpp>
+#include <specific_functions.hpp>

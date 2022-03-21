@@ -52,7 +52,8 @@ int main()
 
     // prepare hard stuff
     auto presence_update_timer = bot->start_timer([&]{ g_tick_presence(config, *bot);}, 60);
-    auto tusers_timer = bot->start_timer([&]{ tf_user_info.free_freeable(); }, 60);
+    auto tusers_timer = bot->start_timer([&]{ tf_user_info.free_freeable(); }, 60, [&]{ tf_user_info.free_all(); });
+    auto tguild_timer = bot->start_timer([&]{ tf_guild_info.free_freeable(); }, 60, [&]{ tf_guild_info.free_all(); });
 
     cout << console::color::AQUA << "[MAIN] Any help do 'help'";
 
@@ -67,6 +68,7 @@ int main()
     // close hard stuff
     bot->stop_timer(presence_update_timer);
     bot->stop_timer(tusers_timer);
+    bot->stop_timer(tguild_timer);
 
     cout << console::color::AQUA << "[MAIN] If from now on this freezes, it's safe to just close.";
 

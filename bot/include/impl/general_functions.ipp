@@ -21,13 +21,13 @@ inline bool find_json_autoabort(const nlohmann::json& json, const T& key, K& to,
     return false;
 }
 
-template<typename T, typename K>
+template<typename J, typename T, typename K>
 inline bool find_json_array_autoabort(const nlohmann::json& json, const T& key, K& to, std::function<void(const std::exception&)> errfunc)
 { 
     auto jr = json.find(key);
     if (jr != json.end()) {
         try {
-            for(auto it : *jr) to.insert(to.end(), it);
+            for(auto it : *jr) to.insert(to.end(), J(it));
             return true;
         }
         catch(const std::exception& e) {

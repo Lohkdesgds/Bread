@@ -41,6 +41,9 @@ public:
     // free the old guys
     void free_freeable();
 
+    // force clear all references
+    void free_all();
+
     // inactive for how long to free stuff on free_freeable()?
     void set_free_time(std::chrono::seconds);
 

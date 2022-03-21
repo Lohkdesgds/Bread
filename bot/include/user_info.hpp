@@ -5,7 +5,9 @@
 #include <dpp/fmt/format.h>
 #include <console.h>
 #include <bomb.h>
+
 #include <defaults.hpp>
+#include <general_functions.hpp>
 
 struct user_info {
     using mull = unsigned long long;
