@@ -179,7 +179,7 @@ void g_on_modal(const dpp::form_submit_t& ev)
 
             change_component(cpy.components, "guildconf-member_points-select_userid",  [&](dpp::component& it){
                 if (guuuuud) {
-                    std::string unam = "<name not found>";
+                    std::string unam = "<name not in cache>";
                     {
                         dpp::cache<dpp::user>* cach = dpp::get_user_cache();
                         std::shared_lock<std::shared_mutex> lu(cach->get_mutex());
@@ -396,132 +396,8 @@ void g_on_modal(const dpp::form_submit_t& ev)
                 ev.reply(make_ephemeral_message("Something went wrong! Guild do not exist?! Please report error! I'm so sorry."));
                 return;
             }
-
-            if (guil->roles_available.size() >= guild_props::max_role_groups) {
-                ev.reply(make_ephemeral_message("Can't add more!."));
-                return;
-            }
             
-            {
-                auto it = std::find_if(guil->roles_available.begin(), guil->roles_available.end(), [&](const guild_info::category& c){ return c.name == val; });
-                if (it != guil->roles_available.end()) {
-                    ev.reply(make_ephemeral_message("This group already exists!"));
-                    return;
-                }
-
-                guild_info::category cat;
-                cat.name = val;
-                guil->roles_available.push_back(cat);
-            }
-
-            dpp::message cpy = ev.command.msg;
-            size_t offset = 0;
-
-            change_component(cpy.components, "guildconf-roles_command-selected", [&](dpp::component& d){
-                d.set_label(val);
-                for (size_t ff = 0; ff < guil->roles_available.size(); ++ff) {
-                    if (guil->roles_available[ff].name == d.label) {
-                        offset = ff;
-                        break;
-                    }
-                }
-            });
-
-
-            if (guil->roles_available.size() == 0) {
-                cpy.content = "**Empty config**\nStart by creating a new role list!";
-            }
-            else {
-                const auto& selectd = guil->roles_available[offset];
-
-                cpy.content = "**Current list [" + 
-                    std::to_string(selectd.list.size()) + "/" + std::to_string(guild_props::max_role_group_each) + " roles, " +
-                    std::to_string(guil->roles_available.size()) + "/" + std::to_string(guild_props::max_role_groups) + " groups]:**\n```cs\n";
-
-                cpy.content += "Group selected: " + selectd.name + "\n";
-
-                if (selectd.list.size()){
-                    dpp::cache<dpp::role>* cach = dpp::get_role_cache();
-                    {
-                        std::shared_lock<std::shared_mutex> lu(cach->get_mutex());
-                        auto& rols = cach->get_container();
-
-                        for(const auto& it : selectd.list) {
-                            cpy.content += " " + std::to_string(it.id) + " [" + it.name + "]: #";
-                            auto found = std::find_if(rols.begin(), rols.end(), [&](const std::pair<dpp::snowflake, dpp::role*>& s){ return s.first == it.id;});
-                            if (found != rols.end()) cpy.content += found->second->name;
-                            cpy.content += "\n";
-                        }
-                    }
-                }
-                else {
-                    cpy.content += " <empty>";
-                }
-
-                cpy.content += "\n```\n**Select another group below, if you want to:**";
-            }
-
-            cpy.components.clear();
-            if (guil->roles_available.size()) {
-                dpp::component clist;
-                clist.set_label("Configurations");
-                clist.set_id("guildconf-roles_command-select");
-                clist.set_type(dpp::cot_selectmenu);
-
-                for(const auto& each : guil->roles_available) {
-                    clist.add_select_option(dpp::select_option(each.name, each.name, "Select to manage it"));
-                }
-
-                cpy.add_component(
-                    dpp::component().add_component(clist)
-                );
-            }
-            cpy.add_component(
-                dpp::component()
-                    .add_component(dpp::component()
-                        .set_type(dpp::cot_button)
-                        .set_style(dpp::cos_primary)
-                        .set_label("New role list")
-                        .set_disabled(guil->roles_available.size() >= guild_props::max_role_groups)
-                        .set_id("guildconf-roles_command-addgroup")
-                        .set_emoji("🌟")
-                    )
-                    .add_component(dpp::component()
-                        .set_type(dpp::cot_button)
-                        .set_style(dpp::cos_danger)
-                        .set_label("Remove role list")
-                        .set_disabled(guil->roles_available.size() == 0)
-                        .set_id("guildconf-roles_command-delgroup")
-                        .set_emoji("❌")
-                    )
-                    .add_component(dpp::component()
-                        .set_type(dpp::cot_button)
-                        .set_style(dpp::cos_secondary)
-                        .set_label(guil->roles_available.size() ? (guil->roles_available[offset].name) : "<none selected>")
-                        .set_id("guildconf-roles_command-selected")
-                        .set_disabled(true)
-                    )
-                    .add_component(dpp::component()
-                        .set_type(dpp::cot_button)
-                        .set_style(dpp::cos_primary)
-                        .set_label("Add a role to the list")
-                        .set_disabled(guil->roles_available.size() ? (guil->roles_available[offset].list.size() >= guild_props::max_role_group_each) : true)
-                        .set_id("guildconf-roles_command-add")
-                        .set_emoji("🆕")
-                    )
-                    .add_component(dpp::component()
-                        .set_type(dpp::cot_button)
-                        .set_style(dpp::cos_secondary)
-                        .set_label("Remove a role from the list")
-                        .set_disabled(guil->roles_available.size() ? (guil->roles_available[offset].list.size() == 0) : true)
-                        .set_id("guildconf-roles_command-del")
-                        .set_emoji("🗑️")
-                    )
-            );
-
-            cpy.set_flags(64);
-            ev.reply(dpp::ir_update_message, cpy, error_autoprint);
-
+            ev.reply(dpp::ir_update_message, roleguild_auto_do(guil, ev.command.msg, roleguild_tasks::GROUP_ADD, val), error_autoprint);
         }
         catch(...) {
             ev.reply(make_ephemeral_message("Sorry, something went wrong! I'm so sorry."));
@@ -543,125 +419,7 @@ void g_on_modal(const dpp::form_submit_t& ev)
                 return;
             }
 
-            {
-                auto it = std::find_if(guil->roles_available.begin(), guil->roles_available.end(), [&](const guild_info::category& c){ return c.name == val; });
-                if (it == guil->roles_available.end()) {
-                    ev.reply(make_ephemeral_message("Could not find one named like that."));
-                    return;
-                }
-
-                guil->roles_available.erase(it);
-            }
-
-            dpp::message cpy = ev.command.msg;
-            size_t offset = 0;
-
-            change_component(cpy.components, "guildconf-roles_command-selected", [&](dpp::component& d){
-                if (val == d.label) {
-                    d.set_label(guil->roles_available.size() ? (guil->roles_available[0].name) : "<none selected>");
-                }
-                for (size_t ff = 0; ff < guil->roles_available.size(); ++ff) {
-                    if (guil->roles_available[ff].name == d.label) {
-                        offset = ff;
-                        break;
-                    }
-                }
-            });
-
-
-            if (guil->roles_available.size() == 0) {
-                cpy.content = "**Empty config**\nStart by creating a new role list!";
-            }
-            else {
-                const auto& selectd = guil->roles_available[offset];
-
-                cpy.content = "**Current list [" + 
-                    std::to_string(selectd.list.size()) + "/" + std::to_string(guild_props::max_role_group_each) + " roles, " +
-                    std::to_string(guil->roles_available.size()) + "/" + std::to_string(guild_props::max_role_groups) + " groups]:**\n```cs\n";
-
-                cpy.content += "Group selected: " + selectd.name + "\n";
-
-                if (selectd.list.size()){
-                    dpp::cache<dpp::role>* cach = dpp::get_role_cache();
-                    {
-                        std::shared_lock<std::shared_mutex> lu(cach->get_mutex());
-                        auto& rols = cach->get_container();
-
-                        for(const auto& it : selectd.list) {
-                            cpy.content += " " + std::to_string(it.id) + " [" + it.name + "]: #";
-                            auto found = std::find_if(rols.begin(), rols.end(), [&](const std::pair<dpp::snowflake, dpp::role*>& s){ return s.first == it.id;});
-                            if (found != rols.end()) cpy.content += found->second->name;
-                            cpy.content += "\n";
-                        }
-                    }
-                }
-                else {
-                    cpy.content += " <empty>";
-                }
-
-                cpy.content += "\n```\n**Select another group below, if you want to:**";
-            }
-
-            cpy.components.clear();
-            if (guil->roles_available.size()) {
-                dpp::component clist;
-                clist.set_label("Configurations");
-                clist.set_id("guildconf-roles_command-select");
-                clist.set_type(dpp::cot_selectmenu);
-
-                for(const auto& each : guil->roles_available) {
-                    clist.add_select_option(dpp::select_option(each.name, each.name, "Select to manage it"));
-                }
-
-                cpy.add_component(
-                    dpp::component().add_component(clist)
-                );
-            }
-            cpy.add_component(
-                dpp::component()
-                    .add_component(dpp::component()
-                        .set_type(dpp::cot_button)
-                        .set_style(dpp::cos_primary)
-                        .set_label("New role list")
-                        .set_disabled(guil->roles_available.size() >= guild_props::max_role_groups)
-                        .set_id("guildconf-roles_command-addgroup")
-                        .set_emoji("🌟")
-                    )
-                    .add_component(dpp::component()
-                        .set_type(dpp::cot_button)
-                        .set_style(dpp::cos_danger)
-                        .set_label("Remove role list")
-                        .set_disabled(guil->roles_available.size() == 0)
-                        .set_id("guildconf-roles_command-delgroup")
-                        .set_emoji("❌")
-                    )
-                    .add_component(dpp::component()
-                        .set_type(dpp::cot_button)
-                        .set_style(dpp::cos_secondary)
-                        .set_label(guil->roles_available.size() ? (guil->roles_available[offset].name) : "<none selected>")
-                        .set_id("guildconf-roles_command-selected")
-                        .set_disabled(true)
-                    )
-                    .add_component(dpp::component()
-                        .set_type(dpp::cot_button)
-                        .set_style(dpp::cos_primary)
-                        .set_label("Add a role to the list")
-                        .set_disabled(guil->roles_available.size() ? (guil->roles_available[offset].list.size() >= guild_props::max_role_group_each) : true)
-                        .set_id("guildconf-roles_command-add")
-                        .set_emoji("🆕")
-                    )
-                    .add_component(dpp::component()
-                        .set_type(dpp::cot_button)
-                        .set_style(dpp::cos_secondary)
-                        .set_label("Remove a role from the list")
-                        .set_disabled(guil->roles_available.size() ? (guil->roles_available[offset].list.size() == 0) : true)
-                        .set_id("guildconf-roles_command-del")
-                        .set_emoji("🗑️")
-                    )
-            );
-
-            cpy.set_flags(64);
-            ev.reply(dpp::ir_update_message, cpy, error_autoprint);
+            ev.reply(dpp::ir_update_message, roleguild_auto_do(guil, ev.command.msg, roleguild_tasks::GROUP_REMOVE, val), error_autoprint);
         }
         catch(...) {
             ev.reply(make_ephemeral_message("Sorry, something went wrong! I'm so sorry."));
@@ -691,125 +449,7 @@ void g_on_modal(const dpp::form_submit_t& ev)
                 return;
             }
 
-            dpp::message cpy = ev.command.msg;
-            size_t offset = 0;
-
-            change_component(cpy.components, "guildconf-roles_command-selected", [&](dpp::component& d){
-                for (size_t ff = 0; ff < guil->roles_available.size(); ++ff) {
-                    if (guil->roles_available[ff].name == d.label) {
-                        offset = ff;
-                        break;
-                    }
-                }
-            });
-
-            auto& thelst = guil->roles_available[offset];
-
-            
-            if (thelst.list.size() >= guild_props::max_role_group_each) {
-                ev.reply(make_ephemeral_message("Can't add more!."));
-                return;
-            }
-
-            auto it = std::find_if(thelst.list.begin(), thelst.list.end(), [&](const guild_info::pair_id_name& p) { return p.id == transl_val;});
-            if (it == thelst.list.end()) thelst.list.push_back(guild_info::pair_id_name{ transl_val, val2 });
-            else { it->name = val2; }
-            
-
-            if (guil->roles_available.size() == 0) {
-                cpy.content = "**Empty config**\nStart by creating a new role list!";
-            }
-            else {
-                const auto& selectd = guil->roles_available[offset];
-
-                cpy.content = "**Current list [" + 
-                    std::to_string(selectd.list.size()) + "/" + std::to_string(guild_props::max_role_group_each) + " roles, " +
-                    std::to_string(guil->roles_available.size()) + "/" + std::to_string(guild_props::max_role_groups) + " groups]:**\n```cs\n";
-
-                cpy.content += "Group selected: " + selectd.name + "\n";
-
-                if (selectd.list.size()){
-                    dpp::cache<dpp::role>* cach = dpp::get_role_cache();
-                    {
-                        std::shared_lock<std::shared_mutex> lu(cach->get_mutex());
-                        auto& rols = cach->get_container();
-
-                        for(const auto& it : selectd.list) {
-                            cpy.content += " " + std::to_string(it.id) + " [" + it.name + "]: #";
-                            auto found = std::find_if(rols.begin(), rols.end(), [&](const std::pair<dpp::snowflake, dpp::role*>& s){ return s.first == it.id;});
-                            if (found != rols.end()) cpy.content += found->second->name;
-                            cpy.content += "\n";
-                        }
-                    }
-                }
-                else {
-                    cpy.content += " <empty>";
-                }
-
-                cpy.content += "\n```\n**Select another group below, if you want to:**";
-            }
-
-            cpy.components.clear();
-            if (guil->roles_available.size()) {
-                dpp::component clist;
-                clist.set_label("Configurations");
-                clist.set_id("guildconf-roles_command-select");
-                clist.set_type(dpp::cot_selectmenu);
-
-                for(const auto& each : guil->roles_available) {
-                    clist.add_select_option(dpp::select_option(each.name, each.name, "Select to manage it"));
-                }
-
-                cpy.add_component(
-                    dpp::component().add_component(clist)
-                );
-            }
-            cpy.add_component(
-                dpp::component()
-                    .add_component(dpp::component()
-                        .set_type(dpp::cot_button)
-                        .set_style(dpp::cos_primary)
-                        .set_label("New role list")
-                        .set_disabled(guil->roles_available.size() >= guild_props::max_role_groups)
-                        .set_id("guildconf-roles_command-addgroup")
-                        .set_emoji("🌟")
-                    )
-                    .add_component(dpp::component()
-                        .set_type(dpp::cot_button)
-                        .set_style(dpp::cos_danger)
-                        .set_label("Remove role list")
-                        .set_disabled(guil->roles_available.size() == 0)
-                        .set_id("guildconf-roles_command-delgroup")
-                        .set_emoji("❌")
-                    )
-                    .add_component(dpp::component()
-                        .set_type(dpp::cot_button)
-                        .set_style(dpp::cos_secondary)
-                        .set_label(guil->roles_available.size() ? (guil->roles_available[offset].name) : "<none selected>")
-                        .set_id("guildconf-roles_command-selected")
-                        .set_disabled(true)
-                    )
-                    .add_component(dpp::component()
-                        .set_type(dpp::cot_button)
-                        .set_style(dpp::cos_primary)
-                        .set_label("Add a role to the list")
-                        .set_disabled(guil->roles_available.size() ? (guil->roles_available[offset].list.size() >= guild_props::max_role_group_each) : true)
-                        .set_id("guildconf-roles_command-add")
-                        .set_emoji("🆕")
-                    )
-                    .add_component(dpp::component()
-                        .set_type(dpp::cot_button)
-                        .set_style(dpp::cos_secondary)
-                        .set_label("Remove a role from the list")
-                        .set_disabled(guil->roles_available.size() ? (guil->roles_available[offset].list.size() == 0) : true)
-                        .set_id("guildconf-roles_command-del")
-                        .set_emoji("🗑️")
-                    )
-            );
-
-            cpy.set_flags(64);
-            ev.reply(dpp::ir_update_message, cpy, error_autoprint);
-
+            ev.reply(dpp::ir_update_message, roleguild_auto_do(guil, ev.command.msg, roleguild_tasks::ROLE_ADD, guild_info::pair_id_name{transl_val, val2 }), error_autoprint);
         }
         catch(...) {
             ev.reply(make_ephemeral_message("Sorry, something went wrong! I'm so sorry."));
@@ -826,137 +466,8 @@ void g_on_modal(const dpp::form_submit_t& ev)
                 ev.reply(make_ephemeral_message("Something went wrong! Guild do not exist?! Please report error! I'm so sorry."));
                 return;
             }
-
-            if (guil->roles_available.size() == 0) {
-                ev.reply(make_ephemeral_message("You have no groups yet! Please create one first!"));
-                return;
-            }
-
-            const unsigned long long transl_val = val == "*" ? 0 : dpp::from_string<dpp::snowflake>(val);
-            if (transl_val == 0 && val != "*") {
-                ev.reply(make_ephemeral_message("Invalid input, my friend!"));
-                return;
-            }
-
-            dpp::message cpy = ev.command.msg;
-            size_t offset = 0;
-
-            change_component(cpy.components, "guildconf-roles_command-selected", [&](dpp::component& d){
-                for (size_t ff = 0; ff < guil->roles_available.size(); ++ff) {
-                    if (guil->roles_available[ff].name == d.label) {
-                        offset = ff;
-                        break;
-                    }
-                }
-            });
-
-            auto& thelst = guil->roles_available[offset];
-
-
-            if (val != "*") {
-                auto it = std::find_if(thelst.list.begin(), thelst.list.end(), [&](const guild_info::pair_id_name& p) { return p.id == transl_val;});
-                if (it != thelst.list.end()) thelst.list.erase(it);
-            }
-            else {
-                thelst.list.clear();
-            }
-
-
-            if (guil->roles_available.size() == 0) {
-                cpy.content = "**Empty config**\nStart by creating a new role list!";
-            }
-            else {
-                const auto& selectd = guil->roles_available[offset];
-
-                cpy.content = "**Current list [" + 
-                    std::to_string(selectd.list.size()) + "/" + std::to_string(guild_props::max_role_group_each) + " roles, " +
-                    std::to_string(guil->roles_available.size()) + "/" + std::to_string(guild_props::max_role_groups) + " groups]:**\n```cs\n";
-
-                cpy.content += "Group selected: " + selectd.name + "\n";
-
-                if (selectd.list.size()){
-                    dpp::cache<dpp::role>* cach = dpp::get_role_cache();
-                    {
-                        std::shared_lock<std::shared_mutex> lu(cach->get_mutex());
-                        auto& rols = cach->get_container();
-
-                        for(const auto& it : selectd.list) {
-                            cpy.content += " " + std::to_string(it.id) + " [" + it.name + "]: #";
-                            auto found = std::find_if(rols.begin(), rols.end(), [&](const std::pair<dpp::snowflake, dpp::role*>& s){ return s.first == it.id;});
-                            if (found != rols.end()) cpy.content += found->second->name;
-                            cpy.content += "\n";
-                        }
-                    }
-                }
-                else {
-                    cpy.content += " <empty>";
-                }
-
-                cpy.content += "\n```\n**Select another group below, if you want to:**";
-            }
-
-            cpy.components.clear();
-            if (guil->roles_available.size()) {
-                dpp::component clist;
-                clist.set_label("Configurations");
-                clist.set_id("guildconf-roles_command-select");
-                clist.set_type(dpp::cot_selectmenu);
-
-                for(const auto& each : guil->roles_available) {
-                    clist.add_select_option(dpp::select_option(each.name, each.name, "Select to manage it"));
-                }
-
-                cpy.add_component(
-                    dpp::component().add_component(clist)
-                );
-            }
-            cpy.add_component(
-                dpp::component()
-                    .add_component(dpp::component()
-                        .set_type(dpp::cot_button)
-                        .set_style(dpp::cos_primary)
-                        .set_label("New role list")
-                        .set_disabled(guil->roles_available.size() >= guild_props::max_role_groups)
-                        .set_id("guildconf-roles_command-addgroup")
-                        .set_emoji("🌟")
-                    )
-                    .add_component(dpp::component()
-                        .set_type(dpp::cot_button)
-                        .set_style(dpp::cos_danger)
-                        .set_label("Remove role list")
-                        .set_disabled(guil->roles_available.size() == 0)
-                        .set_id("guildconf-roles_command-delgroup")
-                        .set_emoji("❌")
-                    )
-                    .add_component(dpp::component()
-                        .set_type(dpp::cot_button)
-                        .set_style(dpp::cos_secondary)
-                        .set_label(guil->roles_available.size() ? (guil->roles_available[offset].name) : "<none selected>")
-                        .set_id("guildconf-roles_command-selected")
-                        .set_disabled(true)
-                    )
-                    .add_component(dpp::component()
-                        .set_type(dpp::cot_button)
-                        .set_style(dpp::cos_primary)
-                        .set_label("Add a role to the list")
-                        .set_disabled(guil->roles_available.size() ? (guil->roles_available[offset].list.size() >= guild_props::max_role_group_each) : true)
-                        .set_id("guildconf-roles_command-add")
-                        .set_emoji("🆕")
-                    )
-                    .add_component(dpp::component()
-                        .set_type(dpp::cot_button)
-                        .set_style(dpp::cos_secondary)
-                        .set_label("Remove a role from the list")
-                        .set_disabled(guil->roles_available.size() ? (guil->roles_available[offset].list.size() == 0) : true)
-                        .set_id("guildconf-roles_command-del")
-                        .set_emoji("🗑️")
-                    )
-            );
-
-            cpy.set_flags(64);
-            ev.reply(dpp::ir_update_message, cpy, error_autoprint);
-
-
+            
+            ev.reply(dpp::ir_update_message, roleguild_auto_do(guil, ev.command.msg, roleguild_tasks::ROLE_REMOVE, val), error_autoprint);
         }
         catch(...) {
             ev.reply(make_ephemeral_message("Sorry, something went wrong! I'm so sorry."));
@@ -1243,100 +754,10 @@ void g_on_select(const dpp::select_click_t& ev)
 
             size_t offset = 0;
 
+            // first new message
             dpp::message msg(ev.command.channel_id, "**Role commands**");
-
-            if (guil->roles_available.size()) {
-                dpp::component clist;
-                clist.set_label("Configurations");
-                clist.set_id("guildconf-roles_command-select");
-                clist.set_type(dpp::cot_selectmenu);
-
-                for(const auto& each : guil->roles_available) {
-                    clist.add_select_option(dpp::select_option(each.name, each.name, "Select to manage it"));
-                }
-
-                msg.add_component(
-                    dpp::component().add_component(clist)
-                );
-            }
-            msg.add_component(
-                dpp::component()
-                    .add_component(dpp::component()
-                        .set_type(dpp::cot_button)
-                        .set_style(dpp::cos_primary)
-                        .set_label("New role list")
-                        .set_disabled(guil->roles_available.size() >= guild_props::max_role_groups)
-                        .set_id("guildconf-roles_command-addgroup")
-                        .set_emoji("🌟")
-                    )
-                    .add_component(dpp::component()
-                        .set_type(dpp::cot_button)
-                        .set_style(dpp::cos_danger)
-                        .set_label("Remove role list")
-                        .set_disabled(guil->roles_available.size() == 0)
-                        .set_id("guildconf-roles_command-delgroup")
-                        .set_emoji("❌")
-                    )
-                    .add_component(dpp::component()
-                        .set_type(dpp::cot_button)
-                        .set_style(dpp::cos_secondary)
-                        .set_label(guil->roles_available.size() ? (guil->roles_available[offset].name) : "<none selected>")
-                        .set_id("guildconf-roles_command-selected")
-                        .set_disabled(true)
-                    )
-                    .add_component(dpp::component()
-                        .set_type(dpp::cot_button)
-                        .set_style(dpp::cos_primary)
-                        .set_label("Add a role to the list")
-                        .set_disabled(guil->roles_available.size() ? (guil->roles_available[offset].list.size() >= guild_props::max_role_group_each) : true)
-                        .set_id("guildconf-roles_command-add")
-                        .set_emoji("🆕")
-                    )
-                    .add_component(dpp::component()
-                        .set_type(dpp::cot_button)
-                        .set_style(dpp::cos_secondary)
-                        .set_label("Remove a role from the list")
-                        .set_disabled(guil->roles_available.size() ? (guil->roles_available[offset].list.size() == 0) : true)
-                        .set_id("guildconf-roles_command-del")
-                        .set_emoji("🗑️")
-                    )
-            );
-
-            if (guil->roles_available.size() == 0) {
-                msg.content = "**Empty config**\nStart by creating a new role list!";
-            }
-            else {
-                const auto& selectd = guil->roles_available[offset];
-
-                msg.content = "**Current list [" + 
-                    std::to_string(selectd.list.size()) + "/" + std::to_string(guild_props::max_role_group_each) + " roles, " +
-                    std::to_string(guil->roles_available.size()) + "/" + std::to_string(guild_props::max_role_groups) + " groups]:**\n```cs\n";
-
-                msg.content += "Group selected: " + selectd.name + "\n";
-
-                if (selectd.list.size()){
-                    dpp::cache<dpp::role>* cach = dpp::get_role_cache();
-                    {
-                        std::shared_lock<std::shared_mutex> lu(cach->get_mutex());
-                        auto& rols = cach->get_container();
-
-                        for(const auto& it : selectd.list) {
-                            msg.content += " " + std::to_string(it.id) + " [" + it.name + "]: #";
-                            auto found = std::find_if(rols.begin(), rols.end(), [&](const std::pair<dpp::snowflake, dpp::role*>& s){ return s.first == it.id;});
-                            if (found != rols.end()) msg.content += found->second->name;
-                            msg.content += "\n";
-                        }
-                    }
-                }
-                else {
-                    msg.content += " <empty>";
-                }
-
-                msg.content += "\n```\n**Select another group below, if you want to:**";
-            }
-
-            msg.set_flags(64);
-            ev.reply(dpp::ir_update_message, msg, error_autoprint);
+            
+            ev.reply(dpp::ir_update_message, roleguild_auto_do(guil, msg, roleguild_tasks::UPDATE, {}), error_autoprint);
             return;
         }
         else if (selected == "guildconf-auto_roles") { // selectable list "guild-auto_roles" + buttons: "new" (list) and "trashcan"
@@ -1406,106 +827,8 @@ void g_on_select(const dpp::select_click_t& ev)
             ev.reply(make_ephemeral_message("Something went wrong! Guild do not exist?! Please report error! I'm so sorry."));
             return;
         }
-
-        size_t offset = 0;
-        for(size_t ff = 0; ff < guil->roles_available.size(); ++ff) {
-            if (guil->roles_available[ff].name == name_sel) {
-                offset = ff;
-                break;
-            }
-        }
-
-        dpp::component clist;
-        clist.set_label("Configurations");
-        clist.set_id("guildconf-roles_command-select");
-        clist.set_type(dpp::cot_selectmenu);
-
-        for(const auto& each : guil->roles_available) {
-            clist.add_select_option(dpp::select_option(each.name, each.name, "Select to manage it"));
-        }
-
-        dpp::message msg(ev.command.channel_id, "**Role commands**");
-        msg.add_component(
-            dpp::component().add_component(clist)
-        )
-        .add_component(
-            dpp::component()
-                .add_component(dpp::component()
-                    .set_type(dpp::cot_button)
-                    .set_style(dpp::cos_primary)
-                    .set_label("New role list")
-                    .set_disabled(guil->roles_available.size() >= guild_props::max_role_groups)
-                    .set_id("guildconf-roles_command-addgroup")
-                    .set_emoji("🌟")
-                )
-                .add_component(dpp::component()
-                    .set_type(dpp::cot_button)
-                    .set_style(dpp::cos_danger)
-                    .set_label("Remove role list")
-                    .set_disabled(guil->roles_available.size() == 0)
-                    .set_id("guildconf-roles_command-delgroup")
-                    .set_emoji("❌")
-                )
-                .add_component(dpp::component()
-                    .set_type(dpp::cot_button)
-                    .set_style(dpp::cos_secondary)
-                    .set_label(guil->roles_available.size() ? (guil->roles_available[offset].name) : "<none selected>")
-                    .set_id("guildconf-roles_command-selected")
-                    .set_disabled(true)
-                )
-                .add_component(dpp::component()
-                    .set_type(dpp::cot_button)
-                    .set_style(dpp::cos_primary)
-                    .set_label("Add a role to the list")
-                    .set_disabled(guil->roles_available.size() ? (guil->roles_available[offset].list.size() >= guild_props::max_role_group_each) : true)
-                    .set_id("guildconf-roles_command-add")
-                    .set_emoji("🆕")
-                )
-                .add_component(dpp::component()
-                    .set_type(dpp::cot_button)
-                    .set_style(dpp::cos_secondary)
-                    .set_label("Remove a role from the list")
-                    .set_disabled(guil->roles_available.size() ? (guil->roles_available[offset].list.size() == 0) : true)
-                    .set_id("guildconf-roles_command-del")
-                    .set_emoji("🗑️")
-                )
-        );
-
-        if (guil->roles_available.size() == 0) {
-                msg.content = "**Empty config**\nStart by creating a new role list!";
-        }
-        else {
-            const auto& selectd = guil->roles_available[offset];
-
-            msg.content = "**Current list [" + 
-                std::to_string(selectd.list.size()) + "/" + std::to_string(guild_props::max_role_group_each) + " roles, " +
-                std::to_string(guil->roles_available.size()) + "/" + std::to_string(guild_props::max_role_groups) + " groups]:**\n```cs\n";
-
-            msg.content += "Group selected: " + selectd.name + "\n";
-
-            if (selectd.list.size()){
-                dpp::cache<dpp::role>* cach = dpp::get_role_cache();
-                {
-                    std::shared_lock<std::shared_mutex> lu(cach->get_mutex());
-                    auto& rols = cach->get_container();
-
-                    for(const auto& it : selectd.list) {
-                        msg.content += " " + std::to_string(it.id) + " [" + it.name + "]: #";
-                        auto found = std::find_if(rols.begin(), rols.end(), [&](const std::pair<dpp::snowflake, dpp::role*>& s){ return s.first == it.id;});
-                        if (found != rols.end()) msg.content += found->second->name;
-                        msg.content += "\n";
-                    }
-                }
-            }
-            else {
-                msg.content += " <empty>";
-            }
-
-            msg.content += "\n```\n**Select another group below, if you want to:**";
-        }
-
-        msg.set_flags(64);
-        ev.reply(dpp::ir_update_message, msg, error_autoprint);
+        
+        ev.reply(dpp::ir_update_message, roleguild_auto_do(guil, ev.command.msg, roleguild_tasks::SELECTUPDATE, name_sel), error_autoprint);
         return;
     }
     ev.reply(make_ephemeral_message("Unexpected command. How is this possible? Command id that failed: `" + ev.custom_id + "`."));
@@ -1568,6 +891,7 @@ void g_on_interaction(const dpp::interaction_create_t& ev)
             went_good = run_self(ev);
             break;
         case discord_slashcommands::RC_SHOWINFO:
+            went_good = run_showinfo(ev);
             break;
         case discord_slashcommands::RC_COPY:
             went_good = run_copy(ev, cmd);
@@ -1910,6 +1234,20 @@ std::string get_customid_as_str(const std::vector<dpp::component>& v, const std:
     return {};
 }
 
+std::string get_label(const std::vector<dpp::component>& v, const std::string& key)
+{
+    for(const auto& i : v) {
+        if (i.custom_id == key) {
+            return i.label;
+        }
+        if (i.components.size()) {
+            auto _str = get_label(i.components, key);
+            if (_str.size()) return _str;
+        }
+    }
+    return {};
+}
+
 dpp::component make_boolean_button(const bool m)
 {
     dpp::component _tmp;
@@ -1931,6 +1269,318 @@ dpp::message make_ephemeral_message(const std::string& str)
     msg.set_content(str);
     msg.set_flags(64);
     return msg;
+}
+
+dpp::message roleguild_auto_do(const std::shared_ptr<guild_info>& guil, const dpp::message& origmsg, const roleguild_tasks task, std::variant<std::monostate, guild_info::pair_id_name, std::string> input)
+{
+    dpp::message cpy = origmsg;
+    std::string selected_group;
+    size_t offset_group = 0;
+    bool is_empty = false;
+    std::string emplaced_error;
+
+    cpy.set_flags(64);
+
+    const auto f_find_ret_sizet = [&](const std::string& s) {
+        for(size_t oof = 0; oof < guil->roles_available.size(); ++oof) {
+            if (guil->roles_available[oof].name == s) return oof;
+        }
+        return static_cast<size_t>(-1);
+    };
+
+    const auto f_reset_select = [&]{
+        offset_group = 0;
+        is_empty = guil->roles_available.empty();
+        selected_group.clear();
+    };
+
+    switch(task) {
+    case roleguild_tasks::SELECTUPDATE:
+    {
+        selected_group = std::get<std::string>(input);
+        offset_group = f_find_ret_sizet(selected_group);
+        is_empty = false;
+
+        if (offset_group > guil->roles_available.size()) {
+            emplaced_error = "Something went wrong while indexing groups.";
+            f_reset_select();
+        }
+    }
+        break;
+    case roleguild_tasks::UPDATE:
+    {
+        if (guil->roles_available.size()) {
+            selected_group = get_label(origmsg.components, "guildconf-roles_command-selected");
+
+            offset_group = f_find_ret_sizet(selected_group);
+            is_empty = false;
+
+            if (offset_group > guil->roles_available.size()) {
+                f_reset_select();
+            }
+        }
+        else {
+            f_reset_select();
+        }
+    }
+        break;
+    case roleguild_tasks::GROUP_ADD:
+    {
+        if (guil->roles_available.size() >= guild_props::max_role_groups) {
+            emplaced_error = "Already full of groups!";
+
+            selected_group = get_label(origmsg.components, "guildconf-roles_command-selected");
+            offset_group = f_find_ret_sizet(selected_group);
+
+            if (offset_group > guil->roles_available.size()) {
+                emplaced_error = "Something went wrong while handling full group error.";
+                f_reset_select();
+            }
+        }
+        else {
+            selected_group = std::get<std::string>(input);
+            
+            auto it = std::find_if(guil->roles_available.begin(), guil->roles_available.end(), [&](const guild_info::category& c){ return c.name == selected_group; });
+            if (it == guil->roles_available.end()) {
+                guild_info::category cat;
+                cat.name = selected_group;
+                guil->roles_available.push_back(cat);
+                offset_group = guil->roles_available.size() - 1;
+                is_empty = false;
+            }
+            else {
+                emplaced_error = "Group already exists!";
+
+                if (guil->roles_available.size()){
+                    offset_group = f_find_ret_sizet(selected_group);
+
+                    if (offset_group > guil->roles_available.size()){
+                        emplaced_error = "Something went wrong while listing internal list of groups.";
+                        f_reset_select();
+                    }
+                }
+                else { // already exists, but empty group? HOW?
+                    emplaced_error = "Something went wrong while listing internal list of groups.";
+                    f_reset_select();
+                }
+            }
+        }
+    }
+        break;
+    case roleguild_tasks::GROUP_REMOVE:
+    {
+        const std::string& todel = std::get<std::string>(input);
+
+        auto it = std::find_if(guil->roles_available.begin(), guil->roles_available.end(), [&](const guild_info::category& c){ return c.name == todel; });
+
+        if (it != guil->roles_available.end()) {
+            guil->roles_available.erase(it);
+            f_reset_select();
+        }
+        else {
+            emplaced_error = "Cannot find this group to delete.";
+
+            selected_group = get_label(origmsg.components, "guildconf-roles_command-selected");
+            offset_group = f_find_ret_sizet(selected_group);
+
+            if (offset_group > guil->roles_available.size()) {
+                emplaced_error = "Something went wrong while listing internal list of groups.";
+                f_reset_select();
+            }
+        }
+    }
+        break;
+    case roleguild_tasks::ROLE_ADD:
+    case roleguild_tasks::ROLE_REMOVE:
+    {
+        if (!guil->roles_available.empty()) {
+
+            // SELECT AND OFFSET ARE SET HERE:
+            selected_group = get_label(origmsg.components, "guildconf-roles_command-selected");
+
+            // OFFSET HERE, NO WORRIES LOL:
+            if ((offset_group = f_find_ret_sizet(selected_group)) < guil->roles_available.size()) // true if found
+            {
+                is_empty = false;
+                if (task == roleguild_tasks::ROLE_REMOVE) 
+                {
+                    const std::string key_task = std::get<std::string>(input); // add or remove what?
+
+                    if (key_task == "*") {
+                        guil->roles_available[offset_group].list.clear();
+                    }
+                    else {
+                        const unsigned long long transl_val = dpp::from_string<dpp::snowflake>(key_task); // may be 0, no prob tho, it fails later
+
+                        auto it = std::find_if(guil->roles_available[offset_group].list.begin(), guil->roles_available[offset_group].list.end(),
+                            [&](const guild_info::pair_id_name& p) { return p.id == transl_val;});
+
+                        if (it != guil->roles_available[offset_group].list.end()) guil->roles_available[offset_group].list.erase(it);
+                    }
+                }
+                else 
+                {
+                    if (guil->roles_available[offset_group].list.size() >= guild_props::max_role_group_each) {
+                        emplaced_error = "Already full of roles on this group!";
+                    }
+                    else {
+                        const guild_info::pair_id_name addin = std::get<guild_info::pair_id_name>(input); // add or remove what?
+
+                        auto it = std::find_if(guil->roles_available[offset_group].list.begin(), guil->roles_available[offset_group].list.end(),
+                            [&](const guild_info::pair_id_name& p) { return p.id == addin.id;});
+
+                        if (it == guil->roles_available[offset_group].list.end()) {
+                            guil->roles_available[offset_group].list.push_back(addin);
+                        }
+                        else { 
+                            it->name = addin.name;
+                        }
+                    }
+                }
+            }
+            else { // offset is broken / EOF
+                emplaced_error = "Something went wrong while listing internal list of groups.";
+                f_reset_select();
+            }
+        }
+        else {
+            is_empty = true;
+        }
+    }
+        break;
+    }
+
+    if (!is_empty && selected_group.empty() && offset_group < guil->roles_available.size()) selected_group = guil->roles_available[offset_group].name;
+
+    const bool tags_failed_once_redo = 
+        !change_component(cpy.components, "guildconf-roles_command-select", [&](dpp::component& d) {
+            if (guil->roles_available.size()) {
+                d.options.clear();
+                for(const auto& each : guil->roles_available)
+                    d.add_select_option(dpp::select_option(each.name, each.name, "Select to manage it"));
+            }
+            else {
+                for(auto msrc = cpy.components.begin(); msrc != cpy.components.end();)
+                {
+                    bool erased = false;
+                    for(const auto& i : msrc->components){
+                        if (i.custom_id == "guildconf-roles_command-select") {
+                            cpy.components.erase(msrc);
+                            msrc = cpy.components.end();
+                            erased = true;
+                        }
+                    }
+                    if (!erased) ++msrc;
+                }
+            }
+        }) || !change_component(cpy.components, "guildconf-roles_command-addgroup", [&](dpp::component& d) {
+            d.set_disabled(guil->roles_available.size() >= guild_props::max_role_groups);
+        }) || !change_component(cpy.components, "guildconf-roles_command-delgroup", [&](dpp::component& d) {
+            d.set_disabled(guil->roles_available.size() == 0);
+        }) || !change_component(cpy.components, "guildconf-roles_command-selected", [&](dpp::component& d) {
+            d.set_label(selected_group.size() ? selected_group : "<none selected>");
+        }) || !change_component(cpy.components, "guildconf-roles_command-add", [&](dpp::component& d) {
+            d.set_disabled(is_empty ? true : (guil->roles_available[offset_group].list.size() >= guild_props::max_role_group_each));
+        }) || !change_component(cpy.components, "guildconf-roles_command-del", [&](dpp::component& d) {
+            d.set_disabled(is_empty ? true : (guil->roles_available[offset_group].list.size() == 0));
+        });
+
+    if (tags_failed_once_redo) 
+    {
+        cpy.components.clear();
+
+        if (guil->roles_available.size()) {
+            dpp::component clist;
+            clist.set_label("Configurations");
+            clist.set_id("guildconf-roles_command-select");
+            clist.set_type(dpp::cot_selectmenu);
+
+            for(const auto& each : guil->roles_available) {
+                clist.add_select_option(dpp::select_option(each.name, each.name, "Select to manage it"));
+            }
+
+            cpy.add_component(dpp::component().add_component(clist));
+        }
+        cpy.add_component(
+            dpp::component()
+                .add_component(dpp::component()
+                    .set_type(dpp::cot_button)
+                    .set_style(dpp::cos_primary)
+                    .set_label("New role list")
+                    .set_disabled(guil->roles_available.size() >= guild_props::max_role_groups)
+                    .set_id("guildconf-roles_command-addgroup")
+                    .set_emoji("🌟")
+                )
+                .add_component(dpp::component()
+                    .set_type(dpp::cot_button)
+                    .set_style(dpp::cos_danger)
+                    .set_label("Remove role list")
+                    .set_disabled(guil->roles_available.size() == 0)
+                    .set_id("guildconf-roles_command-delgroup")
+                    .set_emoji("❌")
+                )
+                .add_component(dpp::component()
+                    .set_type(dpp::cot_button)
+                    .set_style(dpp::cos_secondary)
+                    .set_label(selected_group.size() ? selected_group : "<none selected>")
+                    .set_id("guildconf-roles_command-selected")
+                    .set_disabled(true)
+                )
+                .add_component(dpp::component()
+                    .set_type(dpp::cot_button)
+                    .set_style(dpp::cos_primary)
+                    .set_label("Add a role to the list")
+                    .set_disabled(is_empty ? true : (guil->roles_available[offset_group].list.size() >= guild_props::max_role_group_each))
+                    .set_id("guildconf-roles_command-add")
+                    .set_emoji("🆕")
+                )
+                .add_component(dpp::component()
+                    .set_type(dpp::cot_button)
+                    .set_style(dpp::cos_secondary)
+                    .set_label("Remove a role from the list")
+                    .set_disabled(is_empty ? true : (guil->roles_available[offset_group].list.size() == 0))
+                    .set_id("guildconf-roles_command-del")
+                    .set_emoji("🗑️")
+                )
+        );
+    }
+
+    if (is_empty) {
+        cpy.content = "**Config is empty**\nStart by creating a new role list!" + (emplaced_error.size() ? ("\n\n**ERROR:** " + emplaced_error) : "");
+        return cpy;
+    }
+
+    const auto& selectd = guil->roles_available[offset_group];
+
+    cpy.content = "**Current list [" + 
+        std::to_string(selectd.list.size()) + "/" + std::to_string(guild_props::max_role_group_each) + " roles, " +
+        std::to_string(guil->roles_available.size()) + "/" + std::to_string(guild_props::max_role_groups) + " groups]:**\n```cs\n";
+
+    cpy.content += "Group selected: " + selected_group + "\n";
+
+    if (selectd.list.size()){
+        dpp::cache<dpp::role>* cach = dpp::get_role_cache();
+        {
+            std::shared_lock<std::shared_mutex> lu(cach->get_mutex());
+            auto& rols = cach->get_container();
+
+            for(const auto& it : selectd.list) {
+                cpy.content += " " + std::to_string(it.id) + " [" + it.name + "]: #";
+                auto found = std::find_if(rols.begin(), rols.end(), [&](const std::pair<dpp::snowflake, dpp::role*>& s){ return s.first == it.id;});
+                if (found != rols.end()) cpy.content += found->second->name;
+                cpy.content += "\n";
+            }
+        }
+    }
+    else {
+        cpy.content += " <empty>";
+    }
+
+    if (emplaced_error.size()) cpy.content += "\n\n**ERROR:** " + emplaced_error;
+
+    cpy.content += "\n```\n**Select another group below, if you want to:**";
+
+    return cpy;
 }
 
 //dpp::component make_selectable_list(const std::string& listkey, const size_t page, std::vector<dpp::select_option> lst)
@@ -2047,6 +1697,18 @@ bool is_member_admin(const dpp::guild_member& memb)
         if (it->second->has_administrator()) return true;
     }
     return false;
+}
+
+// user pts, current level, points needed for next
+void calc_user_level(const unsigned long long usrpts, unsigned long long& currlevel, unsigned long long& nextlvl)
+{
+    using mull = unsigned long long;
+
+    currlevel = 1;
+    while(static_cast<mull>(pow(leveling::calc_level_div, currlevel + leveling::threshold_points_level_0 - 1)) <= usrpts) ++currlevel;
+
+    const mull next_level_raw = static_cast<mull>(pow(leveling::calc_level_div, currlevel + (leveling::threshold_points_level_0 - 1)));
+    nextlvl = (next_level_raw - usrpts);
 }
 
 bool run_botstatus(const dpp::interaction_create_t& ev, const dpp::command_interaction& cmd)
@@ -2319,5 +1981,77 @@ bool run_paste(const dpp::interaction_create_t& ev, const dpp::command_interacti
             .set_text_style(dpp::text_paragraph)
     );
     ev.dialog(modal, error_autoprint);
+    return true;
+}
+
+bool run_showinfo(const dpp::interaction_create_t& ev)
+{
+    dpp::message replying;
+    replying.id = ev.command.id;
+    replying.channel_id = ev.command.channel_id;
+    replying.set_type(dpp::message_type::mt_application_command);
+    replying.set_flags(64);
+
+    if (!ev.command.resolved.users.size()) {
+        ev.reply(make_ephemeral_message("Failed selecting user"));
+        return true;        
+    }
+
+    dpp::user currusr = (*ev.command.resolved.users.begin()).second;
+   
+    const auto you = tf_user_info[currusr.id];
+    if (!you) {
+        ev.reply(make_ephemeral_message("Something went wrong! You do not exist?! Please report error! I'm so sorry."));
+        return true;
+    }
+
+    dpp::embed localpt, globalpt, statistics;
+    dpp::embed_author common_author{
+            .name = currusr.format_username(),
+            .url = currusr.get_avatar_url(256),
+            .icon_url = currusr.get_avatar_url(256)
+        };
+
+    unsigned long long local_level = 0, local_nextlevel = 0;
+    unsigned long long global_level = 0, global_nextlevel = 0;
+
+    calc_user_level(you->points_per_guild[ev.command.guild_id], local_level, local_nextlevel);
+    calc_user_level(you->points, global_level, global_nextlevel);
+
+    localpt.set_author(common_author);
+    localpt.set_title("**__Local points__**");
+    localpt.set_thumbnail(images::points_image_url);
+    localpt.set_color((you->pref_color < 0 ? random() : you->pref_color) % 0xFFFFFF);
+    localpt.add_field("Current level", (u8"✨ " + std::to_string(local_level)), true );
+    localpt.add_field("Points", (u8"🧬 " + std::to_string(you->points_per_guild[ev.command.guild_id])), true );
+    localpt.add_field("Next level in", (u8"📈 " + std::to_string(local_nextlevel)), true );
+
+    globalpt.set_author(common_author);
+    globalpt.set_title("**__Global points__**");
+    globalpt.set_thumbnail(images::points_image_url);
+    globalpt.set_color((you->pref_color < 0 ? random() : you->pref_color) % 0xFFFFFF);
+    globalpt.add_field("Current level", (u8"✨ " + std::to_string(global_level)), true );
+    globalpt.add_field("Points", (u8"🧬 " + std::to_string(you->points)), true );
+    globalpt.add_field("Next level in", (u8"📈 " + std::to_string(global_nextlevel)), true );
+
+    statistics.set_author(common_author);
+    statistics.set_title("**__Statistics__**");
+    statistics.set_thumbnail(images::statistics_image_url);
+    statistics.set_color((you->pref_color < 0 ? random() : you->pref_color) % 0xFFFFFF);
+    statistics.add_field("Total messages", (u8"📚 " + std::to_string(you->messages_sent)), true);
+    statistics.add_field("Messages here", (u8"📓 " + std::to_string(you->messages_sent_per_guild[ev.command.guild_id])), true);
+    statistics.add_field("% messages here", (u8"🔖 " + std::to_string(static_cast<int>(((100 * you->messages_sent_per_guild[ev.command.guild_id])) / (you->messages_sent == 0 ? 1 : you->messages_sent))) + "%"), true);
+    statistics.add_field("Total files", (u8"🗂️ " + std::to_string(you->attachments_sent)), true);
+    statistics.add_field("Files here", (u8"📁 " + std::to_string(you->attachments_sent_per_guild[ev.command.guild_id])), true);
+    statistics.add_field("% files here", (u8"⚙️ " + std::to_string(static_cast<int>((100 * you->attachments_sent_per_guild[ev.command.guild_id]) / (you->attachments_sent == 0 ? 1 : you->attachments_sent))) + "%"), true);
+    statistics.add_field("Commands triggered", (u8"⚡ " + std::to_string(you->commands_used)), true);
+
+    replying.embeds.push_back(localpt);
+    replying.embeds.push_back(globalpt);
+    replying.embeds.push_back(statistics);
+    replying.set_content("");
+    replying.set_flags(64);
+    
+    ev.reply(replying);
     return true;
 }
