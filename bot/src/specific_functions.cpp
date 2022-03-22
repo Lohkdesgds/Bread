@@ -59,18 +59,73 @@ void g_on_modal(const dpp::form_submit_t& ev)
                 return;
             }
 
-            const std::string title = get_customid_as_str(ev.components, "title");
+            const auto extract_emojis_of = [](const std::string& src) -> std::vector<std::string> {
+                std::vector<std::string> emojis;
+                std::stringstream ss(src);
+                std::string token;
+                while (std::getline(ss, token, ';')){                    
+                    while(token.length() && (token.front() == ' ' || token.front() == '<' || token.front() == 'a' || token.front() == ':'))
+                        token.erase(token.begin());
+                    
+                    while(token.length() && (token.back() == ' ' || token.back() == '>')) 
+                        token.pop_back();
+
+                    if (token.size()) {
+                        emojis.push_back(token);
+                    }
+                }
+                return emojis;
+            };
+
+            const std::string title = get_customid_as_str(ev.components, "title"); // a must have
             const std::string desc = get_customid_as_str(ev.components, "desc");
             const std::string emojis = get_customid_as_str(ev.components, "emojis");
             const std::string imglink = get_customid_as_str(ev.components, "imglink");
             const std::string color = get_customid_as_str(ev.components, "color");
 
-            ev.reply(make_ephemeral_message("In the works!\nTITLE: " + title + "\nDESC: " + desc + "\nEMOJIS: " + emojis + "\nIMGLINK: " + imglink + "\nCOLOR: " + color));
+            //ev.reply(make_ephemeral_message("In the works!\nTITLE: " + title + "\nDESC: " + desc + "\nEMOJIS: " + emojis + "\nIMGLINK: " + imglink + "\nCOLOR: " + color));
 
+            auto emojis_selected = extract_emojis_of(emojis);
+            if (emojis_selected.size() == 0) { emojis_selected.push_back(u8"👍"); emojis_selected.push_back(u8"👎"); }
+            const int64_t transl_clr = interpret_color(color);
 
+            dpp::message replying;
+            replying.id = ev.command.id;
+            replying.channel_id = ev.command.channel_id;
+            replying.set_type(dpp::message_type::mt_application_command);
+            replying.set_flags(0);
 
+            dpp::embed poll_enq;
+            dpp::embed_author author;
 
+            author.name = ev.command.usr.format_username();
+            author.icon_url = ev.command.usr.get_avatar_url(256);
 
+            poll_enq.set_author(author);
+            poll_enq.set_title(title);
+            if (desc.size()) poll_enq.set_description(desc);
+            poll_enq.set_color((transl_clr < 0 ? (you->pref_color < 0 ? random() : you->pref_color) : transl_clr) % 0xFFFFFF);
+            poll_enq.set_thumbnail(images::poll_image_url);
+            if (imglink.size()) poll_enq.set_image(imglink);
+
+            replying.add_embed(poll_enq);
+
+            ev.reply(replying);
+
+            ev.get_original_response([dmbcore = ev.from->creator, emojis_selected](const dpp::confirmation_callback_t& data) {
+                if (data.is_error()) {
+                    cout << console::color::DARK_RED << "Someone called /poll and had issues: " << data.get_error().message;
+                    return;
+                }
+
+                dpp::message msg = std::get<dpp::message>(data.value);
+
+                for(auto& i : emojis_selected) 
+                {
+                    //cout << console::color::DARK_BLUE << " __ add react: to=" << (uint64_t)((void*)msg.owner) << ";react=" << i;
+                    dmbcore->message_add_reaction(msg, i); // dmbcore is a temp fix, msg.owner is nullptr rn.
+                }
+            });
         }
         catch(...) {
             ev.reply(make_ephemeral_message("Sorry, something went wrong! I'm so sorry."));
