@@ -8,6 +8,7 @@
 
 #include <defaults.hpp>
 #include <general_functions.hpp>
+#include <shared_mutex>
 
 struct guild_info {
     using mull = unsigned long long;
@@ -53,6 +54,7 @@ struct guild_info {
     mull fallback_levelup_message_channel = 0;
     bool guild_was_deleted = false;
     bool allow_external_paste = true;
+    mutable std::shared_mutex mu;
 
     nlohmann::json to_json() const;
     void from_json(const nlohmann::json&);

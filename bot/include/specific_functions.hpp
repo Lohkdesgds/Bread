@@ -30,7 +30,9 @@ const std::string confirm_emojis[] = {"⛔", "✅"};
 
 
 /// = = = = = timed/functional functions = = = = = ///
+void g_on_react(const dpp::message_reaction_add_t&);
 void g_on_log(const dpp::log_t&);
+void g_on_message(const dpp::message_create_t&);
 void g_on_ready(const dpp::ready_t&, safe_data<slash_global>&);
 void g_on_modal(const dpp::form_submit_t&);
 void g_on_button_click(const dpp::button_click_t&);

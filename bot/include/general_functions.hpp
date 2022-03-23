@@ -14,4 +14,6 @@ bool find_json_array_autoabort(const nlohmann::json&, const T&, K&, std::functio
 
 std::vector<dpp::snowflake> slice_string_auto_snowflake(const std::string&);
 
+unsigned long long get_time_ms();
+
 #include <impl/general_functions.ipp>

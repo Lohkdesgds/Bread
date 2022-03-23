@@ -1,5 +1,41 @@
 #include <specific_functions.hpp>
 
+void g_on_react(const dpp::message_reaction_add_t& ev)
+{
+    if (ev.reacting_user.is_bot()) return;
+
+    ev.from->creator->message_get(ev.message_id, ev.reacting_channel->id, 
+    [emoj = ev.reacting_emoji, targ = ev.reacting_user, boot = ev.from->creator](const dpp::confirmation_callback_t& dat) mutable {
+        if (dat.is_error()) {
+            cout << console::color::DARK_PURPLE << "Failed on reaction once. Can't get message.";
+            return;
+        }
+
+        dpp::message msg = std::get<dpp::message>(dat.value);
+
+        if (msg.interaction.name == "poll" && msg.author.id == boot->me.id) {
+            if (msg.interaction.usr.id == targ.id) {
+                if (emoj.id == 0 && emoj.name == poll::poll_emoji_delete_reactions)
+                {
+                    boot->message_delete_all_reactions(msg);
+                }
+                else if (emoj.id == 0 && emoj.name == poll::poll_emoji_delete_message)
+                {
+                    boot->message_delete(msg.id, msg.channel_id);
+                }
+                else { // add
+                    boot->message_add_reaction(msg, emoj.format());
+                }
+            }
+            else {
+                if (std::find_if(msg.reactions.begin(), msg.reactions.end(), [&](const dpp::reaction& e){ return e.emoji_id == emoj.id && e.emoji_name == emoj.name; }) != msg.reactions.end()){ // add
+                    boot->message_delete_reaction(msg, targ.id, emoj.format());
+                }
+            }
+        }
+    });
+}
+
 void g_on_log(const dpp::log_t& log)
 {
     switch(log.severity){
@@ -21,6 +57,146 @@ void g_on_log(const dpp::log_t& log)
     case dpp::loglevel::ll_trace:
         // trace is not needed tbh
         break;
+    }
+}
+
+void g_on_message(const dpp::message_create_t& ev)
+{
+    using mull = unsigned long long;
+
+    if (ev.msg.author.is_bot()) return;
+
+    auto you = tf_user_info[ev.msg.author.id];
+    if (!you) return; // discard
+
+    you->messages_sent++;
+    you->messages_sent_per_guild[ev.msg.guild_id]++;
+
+    you->attachments_sent += ev.msg.attachments.size();
+    you->attachments_sent_per_guild[ev.msg.guild_id] += ev.msg.attachments.size();
+
+    auto guil = tf_guild_info[ev.msg.guild_id];
+    if (!guil) return; // abort :(
+
+    if (get_time_ms() <= guil->last_user_earn_points) return;
+    if (get_time_ms() <= you->last_points_earned) return;
+    
+    std::unique_lock<std::shared_mutex> l1(guil->mu, std::defer_lock);
+    std::unique_lock<std::shared_mutex> l2(you->mu, std::defer_lock);
+    std::lock(l1, l2);
+
+    mull old_pts_g = you->points;
+    mull old_pts_l = you->points_per_guild[ev.msg.guild_id];
+
+    int boost_final = 0;
+    const bool had_boost = (random() % leveling::range_boost_chances == 0);
+
+    if (had_boost) boost_final = static_cast<int>(rand() % leveling::range_boost_total) + leveling::range_boost_low;
+    else boost_final = static_cast<int>(rand() % leveling::range_total) + leveling::range_low;
+
+    you->last_points_earned = get_time_ms() + leveling::time_to_earn_points_sameuser_ms;
+    guil->last_user_earn_points = get_time_ms() + leveling::time_to_earn_points_sameuser_ms;
+
+    if (boost_final == 0) return; // no changes
+
+    if (boost_final < 0) {
+        if (you->points_per_guild[ev.msg.guild_id] < (-boost_final)) you->points_per_guild[ev.msg.guild_id] = 0;
+        else you->points_per_guild[ev.msg.guild_id] += boost_final;
+        if (you->points < (-boost_final)) you->points = 0;
+        else you->points += boost_final;
+    }
+    if (boost_final > 0) you->times_they_got_positive_points++;
+    if (boost_final < 0) you->times_they_got_negative_points++;
+
+    //Lunaris::cout << ev.msg->author->username << " -> " << std::to_string(boost_final) ;
+        
+    mull old_lvl_g = 1, old_lvl_l = 1;
+    mull new_lvl_g = 1, new_lvl_l = 1;
+
+    mull new_pts_g = you->points;
+    mull new_pts_l = you->points_per_guild[ev.msg.guild_id];
+
+    while(static_cast<mull>(pow(leveling::calc_level_div, old_lvl_g + leveling::threshold_points_level_0 - 1)) <= old_pts_g) old_lvl_g++;
+    while(static_cast<mull>(pow(leveling::calc_level_div, old_lvl_l + leveling::threshold_points_level_0 - 1)) <= old_pts_l) old_lvl_l++;
+    while(static_cast<mull>(pow(leveling::calc_level_div, new_lvl_g + leveling::threshold_points_level_0 - 1)) <= new_pts_g) new_lvl_g++;
+    while(static_cast<mull>(pow(leveling::calc_level_div, new_lvl_l + leveling::threshold_points_level_0 - 1)) <= new_pts_l) new_lvl_l++;
+
+    const bool global_level_up = (new_lvl_g > old_lvl_g && new_lvl_g >= 1);
+    const bool local_level_up =  (new_lvl_l > old_lvl_l && new_lvl_l >= 1);
+    const bool global_level_down = (new_lvl_g < old_lvl_g && old_lvl_g >= 1);
+    const bool local_level_down =  (new_lvl_l < old_lvl_l && old_lvl_l >= 1);
+
+    if (!global_level_up && !local_level_up && !global_level_down && !local_level_down) return;
+    const bool was_level_up = (global_level_up || local_level_up);
+
+    if (local_level_up || local_level_down) {
+        const auto& vecref = guil->role_per_level;
+
+        if (vecref.size() > 0) {
+            dpp::guild_member member;
+            member.guild_id = ev.msg.guild_id;
+            member.user_id 	= ev.msg.author.id;
+            member.roles 	= ev.msg.member.roles;
+
+            bool had_update = false;
+
+            for (const auto& i : vecref) {
+                if (i.level <= new_lvl_l && (std::find(member.roles.begin(), member.roles.end(), i.id) == member.roles.end())) {
+                    member.roles.push_back(i.id);
+                    had_update = true;
+                    //Lunaris::cout << "+" << i.id ;
+                }
+                else if (i.level > new_lvl_l){
+                    auto it = std::find(member.roles.begin(), member.roles.end(), i.id);
+                    if (it != member.roles.end()) {
+                        member.roles.erase(it);
+                        //Lunaris::cout << "-" << i.id ;
+                        had_update = true;
+                    }
+                }
+            }
+
+            if (had_update) {
+                ev.from->creator->guild_edit_member(member);
+            }
+        }
+    }
+
+    if (you->show_level_up_messages && !guil->block_levelup_user_event) {
+
+        dpp::message replying;
+        replying.set_type(dpp::message_type::mt_reply);
+        if (const auto _temp = guil->fallback_levelup_message_channel; _temp != 0) {
+            replying.channel_id = _temp;
+        }
+        else {
+            replying.channel_id = ev.msg.channel_id;
+            replying.message_reference.channel_id = ev.msg.channel_id;
+            replying.message_reference.message_id = ev.msg.id;
+        }
+        replying.set_flags(64);
+
+        std::string desc = (was_level_up ? ("📈 **LEVEL UP**\n") : ("📉 **LEVEL DOWN**\n"));
+        if (global_level_up || global_level_down) desc += (desc.length() ? "\n" : "") + (u8"✨ **GLOBAL:** " + std::string(was_level_up ? u8"🔺" : u8"🔻") + u8" `LEVEL " + std::to_string(new_lvl_g) + "`");
+        if (local_level_up  || local_level_down)  desc += (desc.length() ? "\n" : "") + (u8"✨ **LOCAL:** "  + std::string(was_level_up ? u8"🔺" : u8"🔻") + u8" `LEVEL " + std::to_string(new_lvl_l) + "`");
+
+        //Lunaris::cout << "Level up stuff:\nTITLE=" << title << "\nDESC=" << desc ;
+
+        dpp::embed autoembed = dpp::embed()
+            .set_author(
+                dpp::embed_author{
+                    .name = ev.msg.author.format_username(),
+                    .url = ev.msg.author.get_avatar_url(256),
+                    .icon_url = ev.msg.author.get_avatar_url(256)
+                })
+            .set_description(desc)
+            .set_color((you->pref_color < 0 ? random() : you->pref_color) % 0xFFFFFF)
+            .set_thumbnail(images::points_image_url);
+
+        replying.embeds.push_back(autoembed);
+        replying.set_content("");
+
+        ev.from->creator->message_create(replying);
     }
 }
 
@@ -799,6 +975,36 @@ void g_on_select(const dpp::select_click_t& ev)
             ev.reply(dpp::ir_update_message, msg, error_autoprint);
             return;
         }
+        else if (selected == "guildconf-leveling_roles"){ // Show buttons "select user", "set value/`$current_value`"
+            dpp::message msg(ev.command.channel_id, "**Leveling setup**");
+            msg.add_component(
+                dpp::component()
+                    .add_component(dpp::component()
+                        .set_type(dpp::cot_button)
+                        .set_style(dpp::cos_primary)
+                        .set_label("Select specific chat to log leveling")
+                        .set_id("guildconf-leveling_roles-select_chid")
+                    )
+                    .add_component(dpp::component()
+                        .set_type(dpp::cot_button)
+                        .set_style(dpp::cos_secondary)
+                        .set_emoji("📩") // 🗑️✅📩 // discard all (disable select), use channel (enable select), on message (disable select)
+                        .set_id("guildconf-leveling_roles-switch_channel")
+                    )
+            );
+            msg.add_component(
+                dpp::component()
+                    .add_component(dpp::component()
+                        .set_type(dpp::cot_button)
+                        .set_style(dpp::cos_secondary)
+                        .set_label("Manage roles per level")
+                        .set_id("guildconf-leveling_roles-spawn_role_setup")
+                    )
+            );
+            msg.set_flags(64);
+            ev.reply(dpp::ir_update_message, msg, error_autoprint);
+            return;
+        }
         else if (selected == "guildconf-roles_command"){ // selectable list "guild-roles_command-list" + buttons: "new" (list), "replace" (list) and "trashcan" (select)
 
             const auto guil = tf_guild_info[ev.command.guild_id];
@@ -921,6 +1127,8 @@ void g_on_interaction(const dpp::interaction_create_t& ev)
         ev.reply(make_ephemeral_message("Something went wrong! You do not exist?! Please report error! I'm so sorry."));
         return;
     }
+
+    you->commands_used++;
 
     bool went_good = false;
 
@@ -1241,6 +1449,8 @@ void setup_bot(dpp::cluster& bot, safe_data<slash_global>& sg)
     bot.on_button_click([&](const dpp::button_click_t& arg) { g_on_button_click(arg); });
     bot.on_select_click([&](const dpp::select_click_t& arg) { g_on_select(arg); });
     bot.on_interaction_create([&](const dpp::interaction_create_t& arg) { g_on_interaction(arg); });
+    bot.on_message_reaction_add([&](const dpp::message_reaction_add_t& arg) { g_on_react(arg); });
+    bot.on_message_create([&](const dpp::message_create_t& arg) { g_on_message(arg); });
 }
 
 void error_autoprint(const dpp::confirmation_callback_t& err)
@@ -1972,7 +2182,7 @@ bool run_config_server(const dpp::interaction_create_t& ev, const dpp::command_i
                 .set_type(dpp::cot_selectmenu)
                 .add_select_option(dpp::select_option("Export config",  "guildconf-export",         "Export guild configuration"))                 // create a message with json there lol
                 .add_select_option(dpp::select_option("/paste",         "guildconf-paste",          "Global configurations about /paste"))         // Show button enable/disable external copy/paste
-                .add_select_option(dpp::select_option("Points",         "guildconf-member_points",  "Select and manage a user's points"))          // Show buttons "select user", "set value/`$current_value`"
+                .add_select_option(dpp::select_option("User points",    "guildconf-member_points",  "Select and manage a user's points"))          // Show buttons "select user", "set value/`$current_value`"
                 .add_select_option(dpp::select_option("Role command",   "guildconf-roles_command",  "Manage user roles system"))                   // selectable list "guild-roles_command-list" + buttons: "new" (list), "replace" (list) and "trashcan" (select)
                 .add_select_option(dpp::select_option("Autorole",       "guildconf-auto_roles",     "Manage roles given on user's first message")) // selectable list "guild-auto_roles" + buttons: "new" (list) and "trashcan"
                 .add_select_option(dpp::select_option("Leveling",       "guildconf-leveling_roles", "Manage leveling settings"))                   // Show buttons for "messages? (true/false)" "where? (modal w/ chat name or id)"

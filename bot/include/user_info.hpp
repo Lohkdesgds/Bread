@@ -8,6 +8,7 @@
 
 #include <defaults.hpp>
 #include <general_functions.hpp>
+#include <shared_mutex>
 
 struct user_info {
     using mull = unsigned long long;
@@ -29,17 +30,18 @@ struct user_info {
     mull last_points_earned = 0; // related to time_to_earn_points_sameuser
 
     // statistics stuff
-    mull messages_sent = 0;
-    std::unordered_map<mull, mull> messages_sent_per_guild; // [guild] = msgs
-    mull attachments_sent = 0;
-    std::unordered_map<mull, mull> attachments_sent_per_guild; // [guild] = atts
-    mull commands_used = 0;
-    int64_t pref_color = -1;
+    mull messages_sent = 0; // good
+    std::unordered_map<mull, mull> messages_sent_per_guild; // good
+    mull attachments_sent = 0; // good
+    std::unordered_map<mull, mull> attachments_sent_per_guild; // good
+    mull commands_used = 0; // good
+    int64_t pref_color = -1; // good
     mull times_they_got_positive_points = 0;
     mull times_they_got_negative_points = 0;
 
     // clipboard stuff
-    clipboard_data clipboard;
+    clipboard_data clipboard; // good
+    mutable std::shared_mutex mu;
 
     // user configurable:
     bool show_level_up_messages = true;

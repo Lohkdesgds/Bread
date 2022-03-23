@@ -23,3 +23,8 @@ std::vector<dpp::snowflake> slice_string_auto_snowflake(const std::string& str)
 
     return nd;
 }
+
+unsigned long long get_time_ms()
+{
+    return std::chrono::duration_cast<std::chrono::duration<unsigned long long, std::milli>>(std::chrono::system_clock::now().time_since_epoch()).count();
+}
