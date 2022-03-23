@@ -914,6 +914,255 @@ void g_on_button_click(const dpp::button_click_t& ev)
 
 void g_on_select(const dpp::select_click_t& ev)
 {
+    if (ev.custom_id == "showinfo-menu") {
+        const auto& selected = ev.values[0];
+
+        if (selected == "showinfo-localpt"){ // Show buttons "select user", "set value/`$current_value`"
+            dpp::message msg(ev.command.channel_id, "**Local points of user**");
+            
+            const auto sstr = get_label(ev.command.msg.components, "showinfo-userid_reg");
+            const dpp::snowflake usrid = dpp::from_string<dpp::snowflake>(sstr);
+
+            if (usrid == 0) {
+                ev.reply(make_ephemeral_message("Something went wrong! User not found?"));
+                return;
+            }
+            
+            dpp::user currusr;
+            {
+                dpp::cache<dpp::user>* cach = dpp::get_user_cache();
+                std::shared_lock<std::shared_mutex> lu(cach->get_mutex());
+                const auto& vec = cach->get_container();
+
+                auto it = std::find_if(vec.begin(), vec.end(), [&](const std::pair<dpp::snowflake, dpp::user*>& u){ return u.first == usrid; });
+                if (it == vec.end()) {
+                    ev.reply(make_ephemeral_message("Something went wrong! Cannot find user somehow. Cache is not up to date?"));
+                    return;
+                }
+
+                currusr = *it->second;
+            }
+        
+            const auto you = tf_user_info[currusr.id];
+            if (!you) {
+                ev.reply(make_ephemeral_message("Something went wrong! You do not exist?! Please report error! I'm so sorry."));
+                return;
+            }
+
+            dpp::embed localpt;
+            dpp::embed_author common_author{
+                    .name = currusr.format_username(),
+                    .url = currusr.get_avatar_url(256),
+                    .icon_url = currusr.get_avatar_url(256)
+                };
+
+            unsigned long long local_level = 0, local_nextlevel = 0;
+
+            calc_user_level(you->points_per_guild[ev.command.guild_id], local_level, local_nextlevel);
+
+            localpt.set_author(common_author);
+            localpt.set_title("**__Local points__**");
+            localpt.set_thumbnail(images::points_image_url);
+            localpt.set_color((you->pref_color < 0 ? random() : you->pref_color) % 0xFFFFFF);
+            localpt.add_field("Current level", (u8"✨ " + std::to_string(local_level)), true );
+            localpt.add_field("Points", (u8"🧬 " + std::to_string(you->points_per_guild[ev.command.guild_id])), true );
+            localpt.add_field("Next level in", (u8"📈 " + std::to_string(local_nextlevel)), true );
+
+            msg.add_component(
+                dpp::component()
+                    .add_component(
+                        dpp::component()
+                        .set_label("Get user information")
+                        .set_id("showinfo-menu")
+                        .set_type(dpp::cot_selectmenu)
+                        .add_select_option(dpp::select_option("Local points",   "showinfo-localpt",     "The user points in this guild"))
+                        .add_select_option(dpp::select_option("Global points",  "showinfo-globalpt",    "The global points (ranking)"))
+                        .add_select_option(dpp::select_option("Statistics",     "showinfo-statistics",  "User stats, like messages sent, commands, attachments..."))
+                    )
+            );
+            msg.add_component(
+                dpp::component()
+                    .add_component(
+                        dpp::component()
+                        .set_label(std::to_string(ev.command.usr.id))
+                        .set_id("showinfo-userid_reg")
+                        .set_type(dpp::cot_button)
+                        .set_style(dpp::cos_secondary)
+                        .set_disabled(true)
+                    )
+            );
+
+            msg.embeds.push_back(localpt);
+            msg.set_content("");
+            msg.set_flags(64);
+            ev.reply(dpp::ir_update_message, msg, error_autoprint);
+            return;
+        }
+        else if (selected == "showinfo-globalpt"){ // Show buttons "select user", "set value/`$current_value`"
+            dpp::message msg(ev.command.channel_id, "**Global points of user**");
+            
+            
+            const auto sstr = get_label(ev.command.msg.components, "showinfo-userid_reg");
+            const dpp::snowflake usrid = dpp::from_string<dpp::snowflake>(sstr);
+            
+            if (usrid == 0) {
+                ev.reply(make_ephemeral_message("Something went wrong! User not found?"));
+                return;
+            }
+            
+            dpp::user currusr;
+            {
+                dpp::cache<dpp::user>* cach = dpp::get_user_cache();
+                std::shared_lock<std::shared_mutex> lu(cach->get_mutex());
+                const auto& vec = cach->get_container();
+
+                auto it = std::find_if(vec.begin(), vec.end(), [&](const std::pair<dpp::snowflake, dpp::user*>& u){ return u.first == usrid; });
+                if (it == vec.end()) {
+                    ev.reply(make_ephemeral_message("Something went wrong! Cannot find user somehow. Cache is not up to date?"));
+                    return;
+                }
+
+                currusr = *it->second;
+            }
+        
+            const auto you = tf_user_info[currusr.id];
+            if (!you) {
+                ev.reply(make_ephemeral_message("Something went wrong! You do not exist?! Please report error! I'm so sorry."));
+                return;
+            }
+
+            dpp::embed globalpt;
+            dpp::embed_author common_author{
+                    .name = currusr.format_username(),
+                    .url = currusr.get_avatar_url(256),
+                    .icon_url = currusr.get_avatar_url(256)
+                };
+
+            unsigned long long global_level = 0, global_nextlevel = 0;
+
+            calc_user_level(you->points, global_level, global_nextlevel);
+
+            globalpt.set_author(common_author);
+            globalpt.set_title("**__Global points__**");
+            globalpt.set_thumbnail(images::points_image_url);
+            globalpt.set_color((you->pref_color < 0 ? random() : you->pref_color) % 0xFFFFFF);
+            globalpt.add_field("Current level", (u8"✨ " + std::to_string(global_level)), true );
+            globalpt.add_field("Points", (u8"🧬 " + std::to_string(you->points)), true );
+            globalpt.add_field("Next level in", (u8"📈 " + std::to_string(global_nextlevel)), true );
+
+            msg.add_component(
+                dpp::component()
+                    .add_component(
+                        dpp::component()
+                        .set_label("Get user information")
+                        .set_id("showinfo-menu")
+                        .set_type(dpp::cot_selectmenu)
+                        .add_select_option(dpp::select_option("Local points",   "showinfo-localpt",     "The user points in this guild"))
+                        .add_select_option(dpp::select_option("Global points",  "showinfo-globalpt",    "The global points (ranking)"))
+                        .add_select_option(dpp::select_option("Statistics",     "showinfo-statistics",  "User stats, like messages sent, commands, attachments..."))
+                    )
+            );
+            msg.add_component(
+                dpp::component()
+                    .add_component(
+                        dpp::component()
+                        .set_label(std::to_string(ev.command.usr.id))
+                        .set_id("showinfo-userid_reg")
+                        .set_type(dpp::cot_button)
+                        .set_style(dpp::cos_secondary)
+                        .set_disabled(true)
+                    )
+            );
+
+            msg.embeds.push_back(globalpt);
+            msg.set_content("");
+            msg.set_flags(64);
+            ev.reply(dpp::ir_update_message, msg, error_autoprint);
+            return;
+        }
+        else if (selected == "showinfo-statistics"){ // Show buttons "select user", "set value/`$current_value`"
+            dpp::message msg(ev.command.channel_id, "**Global points of user**");
+                        
+            const auto sstr = get_label(ev.command.msg.components, "showinfo-userid_reg");
+            const dpp::snowflake usrid = dpp::from_string<dpp::snowflake>(sstr);
+            
+            if (usrid == 0) {
+                ev.reply(make_ephemeral_message("Something went wrong! User not found?"));
+                return;
+            }
+            
+            dpp::user currusr;
+            {
+                dpp::cache<dpp::user>* cach = dpp::get_user_cache();
+                std::shared_lock<std::shared_mutex> lu(cach->get_mutex());
+                const auto& vec = cach->get_container();
+
+                auto it = std::find_if(vec.begin(), vec.end(), [&](const std::pair<dpp::snowflake, dpp::user*>& u){ return u.first == usrid; });
+                if (it == vec.end()) {
+                    ev.reply(make_ephemeral_message("Something went wrong! Cannot find user somehow. Cache is not up to date?"));
+                    return;
+                }
+
+                currusr = *it->second;
+            }
+        
+            const auto you = tf_user_info[currusr.id];
+            if (!you) {
+                ev.reply(make_ephemeral_message("Something went wrong! You do not exist?! Please report error! I'm so sorry."));
+                return;
+            }
+
+            dpp::embed statistics;
+            dpp::embed_author common_author{
+                    .name = currusr.format_username(),
+                    .url = currusr.get_avatar_url(256),
+                    .icon_url = currusr.get_avatar_url(256)
+                };
+
+
+            statistics.set_author(common_author);
+            statistics.set_title("**__Statistics__**");
+            statistics.set_thumbnail(images::statistics_image_url);
+            statistics.set_color((you->pref_color < 0 ? random() : you->pref_color) % 0xFFFFFF);
+            statistics.add_field("Total messages", (u8"📚 " + std::to_string(you->messages_sent)), true);
+            statistics.add_field("Messages here", (u8"📓 " + std::to_string(you->messages_sent_per_guild[ev.command.guild_id])), true);
+            statistics.add_field("% messages here", (u8"🔖 " + std::to_string(static_cast<int>(((100 * you->messages_sent_per_guild[ev.command.guild_id])) / (you->messages_sent == 0 ? 1 : you->messages_sent))) + "%"), true);
+            statistics.add_field("Total files", (u8"🗂️ " + std::to_string(you->attachments_sent)), true);
+            statistics.add_field("Files here", (u8"📁 " + std::to_string(you->attachments_sent_per_guild[ev.command.guild_id])), true);
+            statistics.add_field("% files here", (u8"⚙️ " + std::to_string(static_cast<int>((100 * you->attachments_sent_per_guild[ev.command.guild_id]) / (you->attachments_sent == 0 ? 1 : you->attachments_sent))) + "%"), true);
+            statistics.add_field("Commands triggered", (u8"⚡ " + std::to_string(you->commands_used)), true);
+
+            msg.add_component(
+                dpp::component()
+                    .add_component(
+                        dpp::component()
+                        .set_label("Get user information")
+                        .set_id("showinfo-menu")
+                        .set_type(dpp::cot_selectmenu)
+                        .add_select_option(dpp::select_option("Local points",   "showinfo-localpt",     "The user points in this guild"))
+                        .add_select_option(dpp::select_option("Global points",  "showinfo-globalpt",    "The global points (ranking)"))
+                        .add_select_option(dpp::select_option("Statistics",     "showinfo-statistics",  "User stats, like messages sent, commands, attachments..."))
+                    )
+            );
+            msg.add_component(
+                dpp::component()
+                    .add_component(
+                        dpp::component()
+                        .set_label(std::to_string(ev.command.usr.id))
+                        .set_id("showinfo-userid_reg")
+                        .set_type(dpp::cot_button)
+                        .set_style(dpp::cos_secondary)
+                        .set_disabled(true)
+                    )
+            );
+
+            msg.embeds.push_back(statistics);
+            msg.set_content("");
+            msg.set_flags(64);
+            ev.reply(dpp::ir_update_message, msg, error_autoprint);
+            return;
+        }        
+    }
     if (ev.custom_id == "guild-generate_menu") {
         const auto& selected = ev.values[0];
 
@@ -1017,6 +1266,11 @@ void g_on_select(const dpp::select_click_t& ev)
 
             // first new message
             dpp::message msg(ev.command.channel_id, "**Role commands**");
+
+            // TODO TODO TODO TODO TODO
+            // TODO TODO TODO TODO TODO
+            // TODO TODO TODO TODO TODO
+            // TODO TODO TODO TODO TODO
             
             ev.reply(dpp::ir_update_message, roleguild_auto_do(guil, msg, roleguild_tasks::UPDATE, {}), error_autoprint);
             return;
@@ -1153,6 +1407,7 @@ void g_on_interaction(const dpp::interaction_create_t& ev)
         case discord_slashcommands::SELF:
             went_good = run_self(ev);
             break;
+        case discord_slashcommands::USERINFO:
         case discord_slashcommands::RC_SHOWINFO:
             went_good = run_showinfo(ev);
             break;
@@ -1178,18 +1433,18 @@ void g_tick_presence(const safe_data<general_config>& g, dpp::cluster& bot)
     });
 }
 
-void g_apply_guild_local_commands(dpp::cluster& bot, const safe_data<std::vector<slash_local>>& conf)
-{    
-    conf.csafe<void>([&bot](const std::vector<slash_local>& vec){
+//void g_apply_guild_local_commands(dpp::cluster& bot, const safe_data<std::vector<slash_local>>& conf)
+//{    
+//    conf.csafe<void>([&bot](const std::vector<slash_local>& vec){
+//
+//        // there's a bulk version for create on discord too. Check that.
+//        for(const auto& i : vec) {
+//            // do apply things
+//        }
+//    });
+//}
 
-        // there's a bulk version for create on discord too. Check that.
-        for(const auto& i : vec) {
-            // do apply things
-        }
-    });
-}
-
-void input_handler_cmd(dpp::cluster& bot, bool& _keep, safe_data<general_config>& config, safe_data<std::vector<slash_local>>& lslashes, const safe_data<slash_global>& gslash, const std::string& cmd)
+void input_handler_cmd(dpp::cluster& bot, bool& _keep, safe_data<general_config>& config, /*safe_data<std::vector<slash_local>>& lslashes,*/ const safe_data<slash_global>& gslash, const std::string& cmd)
 {
     std::string arg;
     switch(g_interp_cmd(cmd, arg)) {
@@ -1354,9 +1609,9 @@ void input_handler_cmd(dpp::cluster& bot, bool& _keep, safe_data<general_config>
 
         cout << console::color::GRAY << "[MAIN] Setting up reapply bomb...";
 
-        auto thebomb = std::shared_ptr<bomb>(new Lunaris::bomb([&bot,&lslashes]{
-            cout << console::color::GRAY << "[MAIN] Reapply bomb triggered. Reapplying local guild commands...";
-            g_apply_guild_local_commands(bot, lslashes);
+        auto thebomb = std::shared_ptr<bomb>(new Lunaris::bomb([&bot/*,&lslashes*/]{
+            //cout << console::color::GRAY << "[MAIN] Reapply bomb triggered. Reapplying local guild commands...";
+            //g_apply_guild_local_commands(bot, lslashes);
             cout << console::color::GREEN << "[MAIN] All local guild commands will be available sometime soon.";
         }));
 
@@ -1942,6 +2197,7 @@ discord_slashcommands slash_to_discord_command(const std::string& str)
     if (str == "poll") return discord_slashcommands::POLL;
     if (str == "roles") return discord_slashcommands::ROLES;
     if (str == "self") return discord_slashcommands::SELF;
+    if (str == "info") return discord_slashcommands::USERINFO;
     if (str == "Show info of this user") return discord_slashcommands::RC_SHOWINFO;
     if (str == "Copy to clipboard") return discord_slashcommands::RC_COPY;
     return discord_slashcommands::UNKNOWN;
@@ -2251,6 +2507,37 @@ bool run_paste(const dpp::interaction_create_t& ev, const dpp::command_interacti
 
 bool run_showinfo(const dpp::interaction_create_t& ev)
 {
+    dpp::message msg(ev.command.channel_id, "**About user**");
+    msg.add_component(
+        dpp::component()
+            .add_component(
+                dpp::component()
+                .set_label("Get user information")
+                .set_id("showinfo-menu")
+                .set_type(dpp::cot_selectmenu)
+                .add_select_option(dpp::select_option("Local points",   "showinfo-localpt",     "The user points in this guild"))
+                .add_select_option(dpp::select_option("Global points",  "showinfo-globalpt",    "The global points (ranking)"))
+                .add_select_option(dpp::select_option("Statistics",     "showinfo-statistics",  "User stats, like messages sent, commands, attachments..."))
+            )
+    );
+    msg.add_component(
+        dpp::component()
+            .add_component(
+                dpp::component()
+                .set_label(std::to_string(ev.command.usr.id))
+                .set_id("showinfo-userid_reg")
+                .set_type(dpp::cot_button)
+                .set_style(dpp::cos_secondary)
+                .set_disabled(true)
+            )
+    );
+
+    msg.set_flags(64);
+    ev.reply(msg, error_autoprint);
+    return true;
+
+
+
     dpp::message replying;
     replying.id = ev.command.id;
     replying.channel_id = ev.command.channel_id;

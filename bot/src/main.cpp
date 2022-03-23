@@ -10,7 +10,7 @@ int main()
 
     safe_data<general_config> config;
     safe_data<slash_global> gslash;
-    safe_data<std::vector<slash_local>> lslashes;
+    //safe_data<std::vector<slash_local>> lslashes;
 
 
     if (!gslash.safe<bool>([](slash_global& s){ return s.load_from(slash_path); })) {
@@ -62,7 +62,7 @@ int main()
     for(bool _keep = true; _keep && bot;) {
         std::string cmd;
         std::getline(std::cin, cmd);
-        input_handler_cmd(*bot, _keep, config, lslashes, gslash, cmd);
+        input_handler_cmd(*bot, _keep, config,/* lslashes,*/ gslash, cmd);
     }
     
     // close hard stuff

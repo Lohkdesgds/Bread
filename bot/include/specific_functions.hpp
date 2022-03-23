@@ -22,7 +22,7 @@
 using namespace Lunaris;
 
 enum class commands{ NONE = -1, HELP, EXIT, SETSTATUSSTR, SETSTATUSMODE, SETSTATUSCODE, SETSTATUSLINK, REQUESTGUILDLIST, REQUESTGUILDSNOWFLAKE, REQUESTUSERSNOWFLAKE, RESETSLASHCOMMANDS, DELETEGLOBALSLASH, MEMSTATUS };
-enum class discord_slashcommands{ UNKNOWN = -1, BOTSTATUS, CONFIGURATION, PASTE, PING, POLL, ROLES, SELF, RC_SHOWINFO, RC_COPY };
+enum class discord_slashcommands{ UNKNOWN = -1, BOTSTATUS, CONFIGURATION, PASTE, PING, POLL, ROLES, SELF, USERINFO, RC_SHOWINFO, RC_COPY };
 enum class roleguild_tasks{GROUP_ADD, GROUP_REMOVE, ROLE_ADD, ROLE_REMOVE, UPDATE, SELECTUPDATE};
 
 const std::string confirm_emojis[] = {"⛔", "✅"};
@@ -39,8 +39,8 @@ void g_on_button_click(const dpp::button_click_t&);
 void g_on_select(const dpp::select_click_t&);
 void g_on_interaction(const dpp::interaction_create_t&);
 void g_tick_presence(const safe_data<general_config>&, dpp::cluster&);
-void g_apply_guild_local_commands(dpp::cluster&, const safe_data<std::vector<slash_local>>&);
-void input_handler_cmd(dpp::cluster&, bool&, safe_data<general_config>&, safe_data<std::vector<slash_local>>&, const safe_data<slash_global>&, const std::string&);
+//void g_apply_guild_local_commands(dpp::cluster&, const safe_data<std::vector<slash_local>>&);
+void input_handler_cmd(dpp::cluster&, bool&, safe_data<general_config>&, /*safe_data<std::vector<slash_local>>&,*/ const safe_data<slash_global>&, const std::string&);
 
 /// = = = = = useful user-like functions = = = = = ///
 // command raw, the arguments only are set on second arg

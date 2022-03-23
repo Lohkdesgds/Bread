@@ -26,7 +26,7 @@ public:
 };
 
 // todo: custom slash command
-class slash_local {
-    dpp::snowflake to_guild = 0;
-
-};
+//class slash_local {
+//    dpp::snowflake to_guild = 0;
+//
+//};

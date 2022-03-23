@@ -49,6 +49,13 @@
     },
     {
       "default_permission": true,
+      "description": "Show your info",
+      "name": "info",
+      "options": [],
+      "type": 1
+    },
+    {
+      "default_permission": true,
       "description": "Generate a poll",
       "options": [],
       "name": "poll",
