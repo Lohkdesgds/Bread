@@ -711,6 +711,20 @@ void g_on_modal(const dpp::form_submit_t& ev)
 
 void g_on_button_click(const dpp::button_click_t& ev)
 {
+    transl_button_event wrk(ev);
+
+    wrk.set_content("UPDATED BTN @ " + std::to_string(get_time_ms()) + 
+        "\ngroup_id=" + wrk.group_id + 
+        "\ntrigger_id=" + wrk.trigger_id + 
+        "\ncustomdata=" + wrk.get_custom_as_string() + "[k=" + std::to_string(static_cast<int>(wrk.get_custom_kind())) + "]"
+        );
+
+    cout << console::color::DARK_AQUA << wrk.get_content();
+    wrk.reply(true);
+
+    return;
+
+
     if (ev.custom_id == "user-show_level_up_messages")
     {
         const auto you = tf_user_info[ev.command.usr.id];
@@ -914,6 +928,55 @@ void g_on_button_click(const dpp::button_click_t& ev)
 
 void g_on_select(const dpp::select_click_t& ev)
 {
+    transl_button_event wrk(ev);
+
+    if (wrk.group_id == "guildconf") 
+    {
+        if (wrk.trigger_id == "export")
+        {
+            const auto guil = tf_guild_info[ev.command.guild_id];
+            if (!guil) { ev.reply(make_ephemeral_message("Something went wrong! Guild do not exist?! Please report error! I'm so sorry.")); return; }
+
+            wrk.set_content("**There you go:**");
+            wrk.reply(true, [&](dpp::message& msg){ msg.add_file("guild_data.json", guil->to_json().dump(2)); });
+            return;
+        }
+        if (wrk.trigger_id == "paste")
+        {
+            
+        }
+        if (wrk.trigger_id == "points")
+        {
+            
+        }
+        if (wrk.trigger_id == "roles")
+        {
+            
+        }
+        if (wrk.trigger_id == "aroles")
+        {
+            
+        }
+        if (wrk.trigger_id == "lroles")
+        {
+            
+        }
+    }
+
+    wrk.set_content("UPDATED @ " + std::to_string(get_time_ms()) + 
+        "\ngroup_id=" + wrk.group_id + 
+        "\ntrigger_id=" + wrk.trigger_id + 
+        "\ncustomdata=" + wrk.get_custom_as_string() + "[k=" + std::to_string(static_cast<int>(wrk.get_custom_kind())) + "]"
+        );
+
+    cout << console::color::DARK_AQUA << wrk.get_content();
+    for(const auto& it : wrk.get_select()) cout << "SELECT CUSTOM: " << it.get_custom_as_string();
+
+    wrk.reply(true);
+
+    return;
+
+
     if (ev.custom_id == "showinfo-menu") {
         const auto& selected = ev.values[0];
 
@@ -1262,16 +1325,10 @@ void g_on_select(const dpp::select_click_t& ev)
                 return;
             }
 
-            size_t offset = 0;
-
             // first new message
             dpp::message msg(ev.command.channel_id, "**Role commands**");
 
-            // TODO TODO TODO TODO TODO
-            // TODO TODO TODO TODO TODO
-            // TODO TODO TODO TODO TODO
-            // TODO TODO TODO TODO TODO
-            
+            // generate auto
             ev.reply(dpp::ir_update_message, roleguild_auto_do(guil, msg, roleguild_tasks::UPDATE, {}), error_autoprint);
             return;
         }
@@ -1331,7 +1388,11 @@ void g_on_select(const dpp::select_click_t& ev)
             return;
         }
         else if (selected == "guildconf-leveling_roles"){ // Show buttons for "messages? (true/false)" "where? (modal w/ chat name or id)"
-
+            // TODO TODO TODO TODO TODO TODO
+            // TODO TODO TODO TODO TODO TODO
+            // TODO TODO TODO TODO TODO TODO
+            // TODO TODO TODO TODO TODO TODO
+            // TODO TODO TODO TODO TODO TODO
         }
     }
     else if (ev.custom_id == "guildconf-roles_command-select") {
@@ -1403,6 +1464,7 @@ void g_on_interaction(const dpp::interaction_create_t& ev)
             went_good = run_poll(ev, cmd);
             break;
         case discord_slashcommands::ROLES:
+            went_good = run_roles(ev);
             break;
         case discord_slashcommands::SELF:
             went_good = run_self(ev);
@@ -2234,15 +2296,6 @@ void calc_user_level(const unsigned long long usrpts, unsigned long long& currle
 
 bool run_botstatus(const dpp::interaction_create_t& ev, const dpp::command_interaction& cmd)
 {
-    dpp::message replying;
-    replying.id = ev.command.id;
-    replying.channel_id = ev.command.channel_id;
-    replying.set_type(dpp::message_type::mt_application_command);
-    replying.set_flags(64);
-    replying.nonce = std::to_string(ev.command.usr.id);
-
-    ev.reply(dpp::interaction_response_type::ir_deferred_channel_message_with_source, replying);
-
     double memuse_mb = 0.0;
     double resident_mb = 0.0;
     int num_threads = 0;
@@ -2257,7 +2310,6 @@ bool run_botstatus(const dpp::interaction_create_t& ev, const dpp::command_inter
         memuse_mb = raw_vsize * 1.0 / 1048576; // 1024*1024
         resident_mb = raw_rss * (1.0 * sysconf(_SC_PAGE_SIZE) / 1048576);
     }
-
 
     dpp::embed autoembed = dpp::embed()
         .set_author(
@@ -2302,11 +2354,11 @@ bool run_botstatus(const dpp::interaction_create_t& ev, const dpp::command_inter
             "Current DPP version", (u8"🤖 " + std::string(DPP_VERSION_TEXT)), false
         );
         
-    replying.embeds.push_back(autoembed);
-    replying.set_content("");
-    replying.set_flags(64);
+    dpp::message msg = make_ephemeral_message();
+    msg.embeds.push_back(autoembed);
+    msg.set_flags(64);
 
-    ev.edit_response(replying, error_autoprint);
+    ev.reply(msg);
 
     return true;
 }
@@ -2428,22 +2480,20 @@ bool run_config_server(const dpp::interaction_create_t& ev, const dpp::command_i
         return true;
     }
 
-    dpp::message msg(ev.command.channel_id, "**Guild configuration menu**");
-    msg.add_component(
-        dpp::component()
-            .add_component(
-                dpp::component()
-                .set_label("Select configuration to setup")
-                .set_id("guild-generate_menu")
-                .set_type(dpp::cot_selectmenu)
-                .add_select_option(dpp::select_option("Export config",  "guildconf-export",         "Export guild configuration"))                 // create a message with json there lol
-                .add_select_option(dpp::select_option("/paste",         "guildconf-paste",          "Global configurations about /paste"))         // Show button enable/disable external copy/paste
-                .add_select_option(dpp::select_option("User points",    "guildconf-member_points",  "Select and manage a user's points"))          // Show buttons "select user", "set value/`$current_value`"
-                .add_select_option(dpp::select_option("Role command",   "guildconf-roles_command",  "Manage user roles system"))                   // selectable list "guild-roles_command-list" + buttons: "new" (list), "replace" (list) and "trashcan" (select)
-                .add_select_option(dpp::select_option("Autorole",       "guildconf-auto_roles",     "Manage roles given on user's first message")) // selectable list "guild-auto_roles" + buttons: "new" (list) and "trashcan"
-                .add_select_option(dpp::select_option("Leveling",       "guildconf-leveling_roles", "Manage leveling settings"))                   // Show buttons for "messages? (true/false)" "where? (modal w/ chat name or id)"
-            )
-    );
+    transl_button_event wrk("guildconf");
+
+    wrk.push_select(select_row(std::vector<select_item>{
+                select_item("Export config",  "export",    "Export guild configuration"),
+                select_item("/paste",         "paste",     "Global configurations about /paste"),
+                select_item("User points",    "points",    "Select and manage a user's points"),
+                select_item("Role command",   "roles",     "Manage user roles system"),
+                select_item("Autorole",       "aroles",    "Manage roles given on user's first message"),
+                select_item("Leveling",       "lroles",    "Manage leveling settings")}).set_custom("Cutsm laber"));  
+    //wrk.push_button(button("Home", "reset").set_style(dpp::cos_secondary));
+
+    dpp::message msg = wrk.generate_message();
+    msg.channel_id = ev.command.channel_id;
+    msg.set_content("**Guild configuration menu**");
 
     msg.set_flags(64);
     ev.reply(msg, error_autoprint);
@@ -2535,75 +2585,36 @@ bool run_showinfo(const dpp::interaction_create_t& ev)
     msg.set_flags(64);
     ev.reply(msg, error_autoprint);
     return true;
+}
 
-
-
-    dpp::message replying;
-    replying.id = ev.command.id;
-    replying.channel_id = ev.command.channel_id;
-    replying.set_type(dpp::message_type::mt_application_command);
-    replying.set_flags(64);
-
-    if (!ev.command.resolved.users.size()) {
-        ev.reply(make_ephemeral_message("Failed selecting user"));
-        return true;        
-    }
-
-    dpp::user currusr = (*ev.command.resolved.users.begin()).second;
-   
-    const auto you = tf_user_info[currusr.id];
-    if (!you) {
-        ev.reply(make_ephemeral_message("Something went wrong! You do not exist?! Please report error! I'm so sorry."));
+bool run_roles(const dpp::interaction_create_t& ev)
+{
+    const auto guil = tf_guild_info[ev.command.guild_id];
+    if (!guil) {
+        ev.reply(make_ephemeral_message("Something went wrong! Guild do not exist?! Please report error! I'm so sorry."));
         return true;
     }
 
-    dpp::embed localpt, globalpt, statistics;
-    dpp::embed_author common_author{
-            .name = currusr.format_username(),
-            .url = currusr.get_avatar_url(256),
-            .icon_url = currusr.get_avatar_url(256)
-        };
+    const auto& available_roles = guil->roles_available;
 
-    unsigned long long local_level = 0, local_nextlevel = 0;
-    unsigned long long global_level = 0, global_nextlevel = 0;
+    if (available_roles.empty()) {
+        ev.reply(make_ephemeral_message("This guild has no role groups."));
+        return true;
+    }
 
-    calc_user_level(you->points_per_guild[ev.command.guild_id], local_level, local_nextlevel);
-    calc_user_level(you->points, global_level, global_nextlevel);
+    dpp::message msg(ev.command.channel_id, "**Role system**");
+    dpp::component role_list_in;
 
-    localpt.set_author(common_author);
-    localpt.set_title("**__Local points__**");
-    localpt.set_thumbnail(images::points_image_url);
-    localpt.set_color((you->pref_color < 0 ? random() : you->pref_color) % 0xFFFFFF);
-    localpt.add_field("Current level", (u8"✨ " + std::to_string(local_level)), true );
-    localpt.add_field("Points", (u8"🧬 " + std::to_string(you->points_per_guild[ev.command.guild_id])), true );
-    localpt.add_field("Next level in", (u8"📈 " + std::to_string(local_nextlevel)), true );
+    role_list_in.set_label("Select a role group and the role to get/remove!");
+    role_list_in.set_id("rolesget-menu");
+    role_list_in.set_type(dpp::cot_selectmenu);
 
-    globalpt.set_author(common_author);
-    globalpt.set_title("**__Global points__**");
-    globalpt.set_thumbnail(images::points_image_url);
-    globalpt.set_color((you->pref_color < 0 ? random() : you->pref_color) % 0xFFFFFF);
-    globalpt.add_field("Current level", (u8"✨ " + std::to_string(global_level)), true );
-    globalpt.add_field("Points", (u8"🧬 " + std::to_string(you->points)), true );
-    globalpt.add_field("Next level in", (u8"📈 " + std::to_string(global_nextlevel)), true );
-
-    statistics.set_author(common_author);
-    statistics.set_title("**__Statistics__**");
-    statistics.set_thumbnail(images::statistics_image_url);
-    statistics.set_color((you->pref_color < 0 ? random() : you->pref_color) % 0xFFFFFF);
-    statistics.add_field("Total messages", (u8"📚 " + std::to_string(you->messages_sent)), true);
-    statistics.add_field("Messages here", (u8"📓 " + std::to_string(you->messages_sent_per_guild[ev.command.guild_id])), true);
-    statistics.add_field("% messages here", (u8"🔖 " + std::to_string(static_cast<int>(((100 * you->messages_sent_per_guild[ev.command.guild_id])) / (you->messages_sent == 0 ? 1 : you->messages_sent))) + "%"), true);
-    statistics.add_field("Total files", (u8"🗂️ " + std::to_string(you->attachments_sent)), true);
-    statistics.add_field("Files here", (u8"📁 " + std::to_string(you->attachments_sent_per_guild[ev.command.guild_id])), true);
-    statistics.add_field("% files here", (u8"⚙️ " + std::to_string(static_cast<int>((100 * you->attachments_sent_per_guild[ev.command.guild_id]) / (you->attachments_sent == 0 ? 1 : you->attachments_sent))) + "%"), true);
-    statistics.add_field("Commands triggered", (u8"⚡ " + std::to_string(you->commands_used)), true);
-
-    replying.embeds.push_back(localpt);
-    replying.embeds.push_back(globalpt);
-    replying.embeds.push_back(statistics);
-    replying.set_content("");
-    replying.set_flags(64);
-    
-    ev.reply(replying);
+    for(const auto& i : available_roles) {
+        role_list_in.add_select_option(dpp::select_option(i.name, i.name, "List roles on this group"));
+    }
+       
+    msg.add_component(dpp::component().add_component(role_list_in));
+    msg.set_flags(64);
+    ev.reply(msg, error_autoprint);
     return true;
 }

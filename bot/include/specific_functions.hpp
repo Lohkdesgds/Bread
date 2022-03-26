@@ -83,3 +83,4 @@ bool run_config_server(const dpp::interaction_create_t&, const dpp::command_inte
 bool run_copy(const dpp::interaction_create_t&, const dpp::command_interaction&);
 bool run_paste(const dpp::interaction_create_t&, const dpp::command_interaction&);
 bool run_showinfo(const dpp::interaction_create_t&);
+bool run_roles(const dpp::interaction_create_t&);
