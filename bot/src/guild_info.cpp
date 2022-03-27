@@ -80,6 +80,7 @@ nlohmann::json guild_info::to_json() const
     j["guild_was_deleted"] = guild_was_deleted;
     j["block_levelup_user_event"] = block_levelup_user_event;
     j["allow_external_paste"] = allow_external_paste;
+    j["commands_public"] = commands_public;
     for(const auto& _field : roles_available) j["roles_available"].push_back(_field.to_json());
     for(const auto& _field : roles_when_join) j["roles_when_join"].push_back(_field);
     for(const auto& _field : role_per_level) j["role_per_level"].push_back(_field.to_json());
@@ -94,6 +95,7 @@ void guild_info::from_json(const nlohmann::json& j)
     find_json_autoabort(j, "guild_was_deleted", guild_was_deleted);
     find_json_autoabort(j, "block_levelup_user_event", block_levelup_user_event);
     find_json_autoabort(j, "allow_external_paste", allow_external_paste);
+    find_json_autoabort(j, "commands_public", commands_public);
 
    if (auto pj = j.find("roles_available");         pj != j.end()) for(const auto& it : *pj) { roles_available.push_back(it); }//, roles_available);
    if (auto pj = j.find("roles_when_join");         pj != j.end()) for(const auto& it : *pj) { roles_when_join.push_back(it); }//, roles_when_join);

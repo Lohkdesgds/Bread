@@ -206,7 +206,119 @@ void g_on_ready(const dpp::ready_t& ev, safe_data<slash_global>& sg)
 }
 
 void g_on_modal(const dpp::form_submit_t& ev)
-{    
+{
+    transl_button_event wrk(ev);
+
+    if (wrk.get_modal_items().empty()) { ev.reply(make_ephemeral_message("Something went wrong! Internal modal copy got LOST!")); return; }
+
+    auto& trigg = wrk.get_trigger();
+
+    if (trigg.group_name == "pointsconf")
+    {
+        if (trigg.item_name == "select") { // select user
+            const dpp::snowflake _num = dpp::from_string<dpp::snowflake>(wrk.get_modal_items()[0].second);
+
+            if (_num == 0) {
+                wrk.find_button_do("TMPpointsconf", "select", [&](item<button_props>& i){
+                    i.set_label("Invalid ID");
+                    i.set_custom(dpp::snowflake(0));
+                    i.extra.style = dpp::cos_danger;
+                });
+                wrk.find_button_do("TMPpointsconf", "prtpts", [&](item<button_props>& i){
+                    i.set_label("Guild points: nan");
+                });
+                wrk.find_button_do("TMPpointsconf", "setpts", [&](item<button_props>& i){
+                    i.extra.disabled = true;
+                    i.extra.style = dpp::cos_secondary;
+                });
+            }
+            else {
+                wrk.find_button_do("TMPpointsconf", "select", [&](item<button_props>& i){
+                    i.set_label("Selected!");// + std::to_string(_num));
+                    i.set_custom(_num);
+                    i.extra.style = dpp::cos_success;
+                });
+                wrk.find_button_do("TMPpointsconf", "setpts", [&](item<button_props>& i){
+                    i.extra.disabled = false;
+                    i.extra.style = dpp::cos_primary;
+                });
+
+                const auto you = tf_user_info[_num];
+                if (!you) { ev.reply(make_ephemeral_message("Something went wrong! Can't get user?! Please report error! I'm so sorry.")); return; }                
+
+                wrk.find_button_do("TMPpointsconf", "prtpts", [&](item<button_props>& i){
+                    i.set_label("Guild points: " + std::to_string(you->points_per_guild[ev.command.guild_id]));
+                });
+            }
+            wrk.reply();
+            return;
+        }
+        else if (trigg.item_name == "setpts") { // set user points
+            dpp::snowflake target = 0;
+
+            wrk.find_button_do("TMPpointsconf", "select", [&](item<button_props>& i){
+                target = i.get_custom_as_snowflake();
+            });
+            
+            if (target == 0) {
+                wrk.find_button_do("TMPpointsconf", "select", [&](item<button_props>& i){
+                    i.set_label("ID got invalid");
+                    i.set_custom(dpp::snowflake(0));
+                    i.extra.style = dpp::cos_danger;
+                });
+                wrk.find_button_do("TMPpointsconf", "prtpts", [&](item<button_props>& i){
+                    i.set_label("Guild points: nan");
+                });
+                wrk.find_button_do("TMPpointsconf", "setpts", [&](item<button_props>& i){
+                    i.extra.disabled = true;
+                    i.extra.style = dpp::cos_danger;
+                });
+            }
+            else {
+                const unsigned long long _fin = dpp::from_string<unsigned long long>(wrk.get_modal_items()[0].second);
+                
+                const auto you = tf_user_info[target];
+                if (!you) { ev.reply(make_ephemeral_message("Something went wrong! Can't get user?! Please report error! I'm so sorry.")); return; }                
+
+                you->points_per_guild[ev.command.guild_id] = _fin;
+
+                wrk.find_button_do("TMPpointsconf", "prtpts", [&](item<button_props>& i){
+                    i.set_label("Guild points: " + std::to_string(you->points_per_guild[ev.command.guild_id]));
+                });
+                wrk.find_button_do("TMPpointsconf", "setpts", [&](item<button_props>& i){
+                    i.extra.disabled = false;
+                    i.extra.style = dpp::cos_success;
+                });
+            }
+            wrk.reply();
+            return;
+        }
+    }
+    
+    wrk.set_content("UPDATED MODAL @ " + std::to_string(get_time_ms()) + 
+        "\ngroup_name=" + trigg.group_name + 
+        "\nitem_name=" + trigg.item_name + 
+        "\ncustomdata=" + trigg.debug_value_as_string()
+        );
+
+    cout << console::color::DARK_AQUA << wrk.get_content();
+    wrk.reply(true);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     if (ev.custom_id == "user-pref_color") {
         try {
             const auto you = tf_user_info[ev.command.usr.id];
@@ -713,10 +825,48 @@ void g_on_button_click(const dpp::button_click_t& ev)
 {
     transl_button_event wrk(ev);
 
+    if (!wrk.get_trigger().target_if_button) { ev.reply(make_ephemeral_message("Something went wrong! Internal reference got LOST!")); return; }
+
+    auto& trigg = wrk.get_trigger();
+
+    if (trigg.group_name == "TMPcommconf") {
+
+        const auto guil = tf_guild_info[ev.command.guild_id];
+        if (!guil) { ev.reply(make_ephemeral_message("Something went wrong! Guild do not exist?! Please report error! I'm so sorry.")); return; }
+
+        if (trigg.item_name == "ext") {
+            trigg.target_if_button->extra.style = 
+                (trigg.target_if_button->extra.style == dpp::cos_success) ? dpp::cos_danger : dpp::cos_success;
+            guil->allow_external_paste = trigg.target_if_button->extra.style == dpp::cos_success;
+        }
+        else if (trigg.item_name == "pub") {
+            trigg.target_if_button->extra.style =
+                (trigg.target_if_button->extra.style == dpp::cos_success) ? dpp::cos_danger : dpp::cos_success;
+            guil->commands_public = trigg.target_if_button->extra.style == dpp::cos_success;
+        }
+
+        wrk.reply();
+        return;
+    }
+    if (trigg.group_name == "TMPpointsconf")
+    {
+        if (trigg.item_name == "select") {
+            auto modal = modal_generate("pointsconf", "select", "Select user");
+            modal_add_component(modal, "User ID (number)", "userid", "012345...", dpp::text_style_type::text_short);
+            ev.dialog(modal, error_autoprint);
+        }
+        else if (trigg.item_name == "setpts") {
+            auto modal = modal_generate("pointsconf", "setpts", "Set user points in guild");
+            modal_add_component(modal, "Points (number, positive)", "points", "121314...", dpp::text_style_type::text_short);
+            ev.dialog(modal, error_autoprint);
+        }
+        return;
+    }
+
     wrk.set_content("UPDATED BTN @ " + std::to_string(get_time_ms()) + 
-        "\ngroup_id=" + wrk.group_id + 
-        "\ntrigger_id=" + wrk.trigger_id + 
-        "\ncustomdata=" + wrk.get_custom_as_string() + "[k=" + std::to_string(static_cast<int>(wrk.get_custom_kind())) + "]"
+        "\ngroup_name=" + trigg.group_name + 
+        "\nitem_name=" + trigg.item_name + 
+        "\ncustomdata=" + trigg.debug_value_as_string()
         );
 
     cout << console::color::DARK_AQUA << wrk.get_content();
@@ -930,47 +1080,111 @@ void g_on_select(const dpp::select_click_t& ev)
 {
     transl_button_event wrk(ev);
 
-    if (wrk.group_id == "guildconf") 
+    if (!wrk.has_valid_ref()) { ev.reply(make_ephemeral_message("Something went wrong! Internal reference got LOST!")); return; }
+
+    if (wrk.get_trigger().group_name == "guildconf") 
     {
-        if (wrk.trigger_id == "export")
+        if (wrk.get_trigger().item_name == "export") // by default embeds/files won't stay
+        {
+            //clear_tmp();
+            wrk.remove_group_named_all("TMP");
+
+            const auto guil = tf_guild_info[ev.command.guild_id];
+            if (!guil) { ev.reply(make_ephemeral_message("Something went wrong! Guild do not exist?! Please report error! I'm so sorry.")); return; }
+
+            wrk.set_content("**Export config selected**");
+            wrk.reply(true, [&](dpp::message& msg){ msg.add_file("guild_data.json", guil->to_json().dump(2)); });
+            return;
+        }
+        if (wrk.get_trigger().item_name == "comm")
         {
             const auto guil = tf_guild_info[ev.command.guild_id];
             if (!guil) { ev.reply(make_ephemeral_message("Something went wrong! Guild do not exist?! Please report error! I'm so sorry.")); return; }
 
-            wrk.set_content("**There you go:**");
-            wrk.reply(true, [&](dpp::message& msg){ msg.add_file("guild_data.json", guil->to_json().dump(2)); });
+            //clear_tmp();
+            wrk.remove_group_named_all("TMP");
+
+            wrk.push_or_replace(button_row()
+                .push_item(item<button_props>("Allow external paste", "ext", { guil->allow_external_paste ? dpp::cos_success : dpp::cos_danger, false }).set_custom(guil->allow_external_paste))
+                .push_item(item<button_props>("Make all commands public", "pub", { guil->commands_public ? dpp::cos_success : dpp::cos_danger, false }).set_custom(guil->commands_public))
+                .set_group_name("TMPcommconf"), 0
+            );
+
+            wrk.set_content("**__User commands configuration__**");
+            wrk.reply();
             return;
         }
-        if (wrk.trigger_id == "paste")
+        if (wrk.get_trigger().item_name == "points")
         {
+            //clear_tmp();
+            wrk.remove_group_named_all("TMP");
             
+            wrk.push_or_replace(button_row()
+                .push_item(item<button_props>("Select user ID", "select", { dpp::cos_primary, false }).set_custom(dpp::snowflake(0)))
+                .push_item(item<button_props>("Guild points: nan", "prtpts", { dpp::cos_secondary, true }))
+                .push_item(item<button_props>("Set user points", "setpts", { dpp::cos_primary, true }))
+                .set_group_name("TMPpointsconf"), 0
+            );
+
+            wrk.set_content("**__Per user points manager__**");
+            wrk.reply();
+            return;
         }
-        if (wrk.trigger_id == "points")
+        if (wrk.get_trigger().item_name == "roles")
         {
+            //clear_tmp();
+            wrk.remove_group_named_all("TMP");
             
+            wrk.push_or_replace(button_row()
+                .push_item(item<button_props>("Add group", "addg", { dpp::cos_primary, false }).set_emoji("🌟"))
+                .push_item(item<button_props>("Remove group", "delg", { dpp::cos_danger, true }).set_emoji("❌"))
+                .set_group_name("TMProlesconf"), 0
+            );
+
+            wrk.set_content("**__Role command setup__**");
+            wrk.reply();
+            return;            
         }
-        if (wrk.trigger_id == "roles")
+        if (wrk.get_trigger().item_name == "aroles") // auto roles
         {
+            //clear_tmp();
+            wrk.remove_group_named_all("TMP");
             
+            wrk.push_or_replace(button_row()
+                .push_item(item<button_props>("Add role", "add", { dpp::cos_primary, false }).set_emoji("🌟"))
+                .push_item(item<button_props>("Remove role", "del", { dpp::cos_danger, true }).set_emoji("❌"))
+                .set_group_name("TMParolesconf"), 0
+            );
+
+            wrk.set_content("**__Automatic on-join role setup__**");
+            wrk.reply();
+            return;
         }
-        if (wrk.trigger_id == "aroles")
+        if (wrk.get_trigger().item_name == "lroles") // level roles
         {
+            //clear_tmp();
+            wrk.remove_group_named_all("TMP");
             
-        }
-        if (wrk.trigger_id == "lroles")
-        {
-            
+            wrk.push_or_replace(button_row()
+                .push_item(item<button_props>("Add level role", "add", { dpp::cos_primary, false }).set_emoji("🌟"))
+                .push_item(item<button_props>("Remove level role", "del", { dpp::cos_danger, true }).set_emoji("❌"))
+                .set_group_name("TMParolesconf"), 0
+            );
+
+            wrk.set_content("**__Leveling role setup__**");
+            wrk.reply();
+            return;
         }
     }
 
     wrk.set_content("UPDATED @ " + std::to_string(get_time_ms()) + 
-        "\ngroup_id=" + wrk.group_id + 
-        "\ntrigger_id=" + wrk.trigger_id + 
-        "\ncustomdata=" + wrk.get_custom_as_string() + "[k=" + std::to_string(static_cast<int>(wrk.get_custom_kind())) + "]"
+        "\ngroup_name=" + wrk.get_trigger().group_name + 
+        "\nitem_name=" + wrk.get_trigger().item_name + 
+        "\ncustomdata=" + wrk.get_trigger().debug_value_as_string()
         );
 
     cout << console::color::DARK_AQUA << wrk.get_content();
-    for(const auto& it : wrk.get_select()) cout << "SELECT CUSTOM: " << it.get_custom_as_string();
+    //for(const auto& it : wrk.get_select()) cout << "SELECT CUSTOM: " << it.get_custom_as_string();
 
     wrk.reply(true);
 
@@ -2480,20 +2694,35 @@ bool run_config_server(const dpp::interaction_create_t& ev, const dpp::command_i
         return true;
     }
 
-    transl_button_event wrk("guildconf");
+    transl_button_event wrk;
 
-    wrk.push_select(select_row(std::vector<select_item>{
-                select_item("Export config",  "export",    "Export guild configuration"),
-                select_item("/paste",         "paste",     "Global configurations about /paste"),
-                select_item("User points",    "points",    "Select and manage a user's points"),
-                select_item("Role command",   "roles",     "Manage user roles system"),
-                select_item("Autorole",       "aroles",    "Manage roles given on user's first message"),
-                select_item("Leveling",       "lroles",    "Manage leveling settings")}).set_custom("Cutsm laber"));  
+    wrk.push_or_replace(select_row()
+        .push_item(item<std::string>("Export config",  "export",    "Export guild configuration"                ).set_emoji("📦"))
+        .push_item(item<std::string>("User commands",  "comm",      "Configurations of commands in this guild"  ).set_emoji("⚙️"))
+        .push_item(item<std::string>("User points",    "points",    "Select and manage a user's points"         ).set_emoji("💵"))
+        .push_item(item<std::string>("Role command",   "roles",     "Manage user /roles command system"         ).set_emoji("🙂"))
+        .push_item(item<std::string>("Autorole",       "aroles",    "Manage roles given on user's first message").set_emoji("📨"))
+        .push_item(item<std::string>("Leveling",       "lroles",    "Manage leveling settings"                  ).set_emoji("📊"))
+        .set_group_name("guildconf")
+    );
+    
+    //wrk.push_button(button_row()
+    //    .push_item(item<button_props>("Fancy button", "fancy", { dpp::cos_primary, true }))
+    //    .push_item(item<button_props>("Danger button", "danger", { dpp::cos_danger, false }))
+    //    .set_group_name("fancy_and_danger")
+    //);
+    //
+    //wrk.push_button(button_row()
+    //    .push_item(item<button_props>("Refresh mind", "refresh", { dpp::cos_primary, false }))
+    //    .push_item(item<button_props>("Undo", "undo", { dpp::cos_danger, false }))
+    //    .push_item(item<button_props>("Testing this", "yes", { dpp::cos_secondary, true }))
+    //    .set_group_name("refreshing")
+    //);
     //wrk.push_button(button("Home", "reset").set_style(dpp::cos_secondary));
 
     dpp::message msg = wrk.generate_message();
     msg.channel_id = ev.command.channel_id;
-    msg.set_content("**Guild configuration menu**");
+    msg.set_content("**__Guild configuration menu__**");
 
     msg.set_flags(64);
     ev.reply(msg, error_autoprint);

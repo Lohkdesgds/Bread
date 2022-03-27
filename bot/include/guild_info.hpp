@@ -54,6 +54,7 @@ struct guild_info {
     mull fallback_levelup_message_channel = 0;
     bool guild_was_deleted = false;
     bool allow_external_paste = true;
+    bool commands_public = false; // slash commands flag not 64?
     mutable std::shared_mutex mu;
 
     nlohmann::json to_json() const;

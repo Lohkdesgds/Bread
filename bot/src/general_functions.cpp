@@ -251,179 +251,147 @@
 //}
 
 
-button& button::set_kind(custom_kinds v)
+
+select_row& select_row::set_group_name(const std::string& nnam)
 {
-    kind = v;
+    if(unsafe_string_name(nnam)) throw std::invalid_argument("Unsafe name! May break stuff!");
+    group_name = nnam;
     return *this;
 }
 
-button& button::set_item_name(const std::string& v)
+select_row& select_row::push_item(item<std::string> ni)
 {
-    if(unsafe_string_name(v)) throw std::invalid_argument("Value contains invalid characters! (button check)");
-    item_name = v;
+    if (items.size() == 25) throw std::overflow_error("Too many items!");
+    items.push_back(ni);
     return *this;
 }
 
-button& button::set_label(const std::string& v)
+void select_row::build(dpp::component src)
 {
-    label = v;
+    if (src.components.empty()) return;
+    const dpp::component& d = src.components[0]; // actionrow with select must have one select only.
+
+    for(const auto& opt : d.options) {
+        item<std::string> ni;
+
+        ni.import_id(opt.value);
+        ni.label = opt.label;
+        ni.extra = opt.description;
+
+        ni.custom_emoji.id = opt.emoji.id;
+        ni.custom_emoji.name = opt.emoji.name;
+        ni.custom_emoji.flags = (opt.emoji.animated) ? dpp::e_animated : 0;
+
+        push_item(ni);
+    }
+
+    group_name = d.custom_id;
+}
+
+dpp::component select_row::dump() const
+{
+    dpp::component d;
+    d.set_type(dpp::cot_selectmenu);
+
+    for(const auto& opt : items) {
+        dpp::select_option sel;
+
+        sel.value = opt.export_id();
+        sel.label = opt.label;
+        sel.description = opt.extra;
+
+        if (!opt.custom_emoji.name.empty()) {
+            sel.emoji.id = opt.custom_emoji.id;
+            sel.emoji.name = opt.custom_emoji.name;
+            sel.emoji.animated = opt.custom_emoji.flags & dpp::e_animated;
+        }
+
+        d.add_select_option(sel);
+    }
+
+    d.custom_id = group_name;
+
+    return dpp::component().add_component(d); // actionrow containing this selectmenu
+}
+
+bool select_row::can_dump() const
+{
+    return items.size();
+}
+
+
+button_row& button_row::set_group_name(const std::string& nnam)
+{
+    if(unsafe_string_name(nnam)) throw std::invalid_argument("Unsafe name! May break stuff!");
+    group_name = nnam;
     return *this;
 }
 
-button& button::set_style(dpp::component_style v)
+button_row& button_row::push_item(item<button_props> ni)
 {
-    style = v;
+    if (items.size() >= 5) throw std::overflow_error("Too many items!");
+    items.push_back(ni);
     return *this;
 }
 
-bool button::get_custom_as_bool() const
+// component with options
+void button_row::build(dpp::component src)
 {
-    return custom_value == "1" ? true : false;
+    for(const auto& d : src.components) // each component is button. max 5 buttons.
+    {
+        item<button_props> ni;
+
+        ni.import_id(d.custom_id);
+        if (group_name.empty()) group_name = select_between(d.custom_id, GROUPID_WRAP);
+        ni.label = d.label;
+        ni.extra = { d.style, d.disabled };
+
+        ni.custom_emoji.id = d.emoji.id;
+        ni.custom_emoji.name = d.emoji.name;
+        ni.custom_emoji.flags = (d.emoji.animated) ? dpp::e_animated : 0;
+
+        push_item(ni);
+    }
 }
 
-dpp::snowflake button::get_custom_as_snowflake() const
+dpp::component button_row::dump() const
 {
-    return dpp::from_string<dpp::snowflake>(custom_value);
+    dpp::component d;
+
+    for(const auto& opt : items) {
+        dpp::component btn;
+
+        btn.set_type(dpp::cot_button);
+        // must have group name inside because buttons are one by one :(
+        btn.set_id(GROUPID_WRAP + group_name + GROUPID_WRAP + opt.export_id());
+        btn.set_label(opt.label);
+        btn.set_style(opt.extra.style);
+        btn.set_disabled(opt.extra.disabled);
+
+        if (!opt.custom_emoji.name.empty()) {
+            btn.emoji.id = opt.custom_emoji.id;
+            btn.emoji.name = opt.custom_emoji.name;
+            btn.emoji.animated = opt.custom_emoji.flags & dpp::e_animated;
+        }
+
+        d.add_component(btn);
+    }
+
+    return d; // d is already actionrow of button(s).
 }
 
-const std::string& button::get_custom_as_string() const
+bool button_row::can_dump() const
 {
-    return custom_value;
+    return items.size();
 }
 
-button& button::set_custom(bool b)
-{
-    custom_value = b ? "1" : "0";
-    kind = custom_kinds::SWITCH;
-    return *this;
-}
 
-button& button::set_custom(dpp::snowflake v)
+std::string transl_button_event::trigger_info::debug_value_as_string() const
 {
-    custom_value = std::to_string(v);
-    kind = custom_kinds::ID;
-    return *this;
-}
-
-button& button::set_custom(const char* v)
-{
-    if(unsafe_string_name(v)) throw std::invalid_argument("Value contains invalid characters! (button check)");
-    custom_value = v;
-    kind = custom_kinds::STRING;
-    return *this;
-}
-
-button& button::set_custom(const std::string& v)
-{
-    if(unsafe_string_name(v)) throw std::invalid_argument("Value contains invalid characters! (button check)");
-    custom_value = v;
-    kind = custom_kinds::STRING;
-    return *this;
-}
-
-button::button(const std::string& lab, const std::string& nam)
-    : label(lab), item_name(nam), kind(custom_kinds::UNDEF)
-{
-}
-
-bool select_item::get_custom_as_bool() const
-{
-    return custom_value == "1" ? true : false;
-}
-
-dpp::snowflake select_item::get_custom_as_snowflake() const
-{
-    return dpp::from_string<dpp::snowflake>(custom_value);
-}
-
-const std::string& select_item::get_custom_as_string() const
-{
-    return custom_value;
-}
-
-select_item& select_item::set_custom(bool b)
-{
-    custom_value = b ? "1" : "0";
-    kind = custom_kinds::SWITCH;
-    return *this;
-}
-
-select_item& select_item::set_custom(dpp::snowflake v)
-{
-    custom_value = std::to_string(v);
-    kind = custom_kinds::ID;
-    return *this;
-}
-
-select_item& select_item::set_custom(const char* v)
-{
-    if(unsafe_string_name(v)) throw std::invalid_argument("Value contains invalid characters! (select_item check)");
-    custom_value = v;
-    kind = custom_kinds::STRING;
-    return *this;
-}
-
-select_item& select_item::set_custom(const std::string& v)
-{
-    if(unsafe_string_name(v)) throw std::invalid_argument("Value contains invalid characters! (select_item check)");
-    custom_value = v;
-    kind = custom_kinds::STRING;
-    return *this;
-}
-
-select_item::select_item(const std::string& a, const std::string& b, const std::string& c, const std::string& val)
-    : label(a), item_name(b), desc(c), is_trigger(false), custom_value(val), kind(custom_kinds::STRING)
-{
-}
-
-bool select_row::get_custom_as_bool() const
-{
-    return custom_value == "1" ? true : false;
-}
-
-dpp::snowflake select_row::get_custom_as_snowflake() const
-{
-    return dpp::from_string<dpp::snowflake>(custom_value);
-}
-
-const std::string& select_row::get_custom_as_string() const
-{
-    return custom_value;
-}
-
-select_row& select_row::set_custom(bool b)
-{
-    custom_value = b ? "1" : "0";
-    kind = custom_kinds::SWITCH;
-    return *this;
-}
-
-select_row& select_row::set_custom(dpp::snowflake v)
-{
-    custom_value = std::to_string(v);
-    kind = custom_kinds::ID;
-    return *this;
-}
-
-select_row& select_row::set_custom(const char* v)
-{
-    if(unsafe_string_name(v)) throw std::invalid_argument("Value contains invalid characters! (select_item check)");
-    custom_value = v;
-    kind = custom_kinds::STRING;
-    return *this;
-}
-
-select_row& select_row::set_custom(const std::string& v)
-{
-    if(unsafe_string_name(v)) throw std::invalid_argument("Value contains invalid characters! (select_item check)");
-    custom_value = v;
-    kind = custom_kinds::STRING;
-    return *this;
-}
-
-select_row::select_row(const std::vector<select_item>& v)
-    : items(v)
-{    
+    if (std::holds_alternative<dpp::snowflake>(value)) return "ID=" + std::to_string(std::get<dpp::snowflake>(value));
+    if (std::holds_alternative<bool>(value)) return "SWITCH=" + std::string(std::get<bool>(value) ? "true" : "false");
+    if (std::holds_alternative<std::string>(value)) return "STRING=" + (std::get<std::string>(value));
+    return "UNDEF";
 }
 
 void transl_button_event::fill_from_msg(const dpp::message& m)
@@ -431,146 +399,263 @@ void transl_button_event::fill_from_msg(const dpp::message& m)
     message_content = m.content;
 
     for(const auto& i : m.components) {
-        for(const auto& j : i.components) {
-            switch(j.type) {
-            case dpp::cot_selectmenu:
-            {
-                select_row _cur;
+        if (i.components.size() == 0) continue;
 
-                for (const auto& opt : j.options) {
-                    select_item item;
+        dpp::component_type objs_type = i.components[0].type; // internal is what? button? selectmenu?
 
-                    item.item_name = select_between(opt.value, ITEMNAME_WRAP);
-                    item.set_custom(select_between(opt.value, CUSTOMVAL_WRAP)); // must be first because kind is set next.
-                    item.kind = str_to_custom_kind(select_between(opt.value, KINDTYPE_WRAP));
-                    
-                    item.label = opt.label;
-                    item.desc = opt.description;
-                    item.is_trigger = (item.item_name == trigger_id);
+        switch(objs_type) {
+        case dpp::cot_selectmenu:
+        {
+            select_row _cur;
+            _cur.build(i); // i is actionrow
+            rows.push_back(_cur);
+        }
+            break;
+        case dpp::cot_button:
+        {
+            button_row _cur;
+            _cur.build(i);
+            rows.push_back(_cur);
+        }
+            break;
+        }
+    }
+}
 
-                    _cur.items.push_back(item);
+void transl_button_event::link_refs()
+{
+    for(auto& it : rows) {
+        if (std::holds_alternative<select_row>(it)){
+            select_row& ref = std::get<select_row>(it);
+            if (ref.group_name != trigg.group_name) continue;
+            for(auto& ea : ref.items) {
+                if (ea.name == trigg.item_name) {
+                    trigg.target_if_select = &ea;
+                    trigg.target_if_button = nullptr;
+                    return;
                 }
-
-                _cur.set_custom(select_between(j.custom_id, CUSTOMVAL_WRAP)); // must be first because kind is set next.
-                _cur.kind = str_to_custom_kind(select_between(j.custom_id, KINDTYPE_WRAP));
-                _cur.group_id = select_between(j.custom_id, GROUPID_WRAP);
-
-                if (!_cur.items.empty()) select_vec.push_back(_cur);
             }
-                break;
-            case dpp::cot_button:
-            {
-                button item;
-
-                item.set_custom(select_between(j.custom_id, CUSTOMVAL_WRAP)); // must be first because kind is set next.
-                item.kind = str_to_custom_kind(select_between(j.custom_id, KINDTYPE_WRAP));
-
-                item.group_id = select_between(j.custom_id, GROUPID_WRAP);
-                item.item_name = select_between(j.custom_id, ITEMNAME_WRAP);
-                item.is_trigger = (item.item_name == trigger_id);
-
-                item.custom_emoji.id = j.emoji.id;
-                item.custom_emoji.name = j.emoji.name;
-                if (j.emoji.animated) item.custom_emoji.flags |= dpp::e_animated;
-
-                item.style = j.style;
-                item.label = j.label;
-
-                button_vec.push_back(item);
-            }
-                break;
+        }
+        else {
+            button_row& ref = std::get<button_row>(it);
+            if (ref.group_name != trigg.group_name) continue;
+            for(auto& ea : ref.items) {
+                if (ea.name == trigg.item_name) {
+                    trigg.target_if_button = &ea;
+                    trigg.target_if_select = nullptr;
+                    return;
+                }
             }
         }
     }
 }
 
-transl_button_event::transl_button_event(const std::string& s)
-    : group_id(s), custom_kind(custom_kinds::UNDEF)
-{
-}
-
 transl_button_event::transl_button_event(const dpp::button_click_t& b)
-    : ifbtnclick(&b), 
-    group_id(select_between(b.custom_id, GROUPID_WRAP)),
-    trigger_id(select_between(b.custom_id, ITEMNAME_WRAP)), 
-    custom_value(select_between(b.custom_id, CUSTOMVAL_WRAP)),
-    custom_kind(str_to_custom_kind(select_between(b.custom_id, KINDTYPE_WRAP)))
+    : ifbtnclick(&b)
 {
     fill_from_msg(b.command.msg);
+
+    trigg.group_name = select_between(b.custom_id, GROUPID_WRAP);
+    trigg.item_name = select_between(b.custom_id, ITEMNAME_WRAP);
+
+    const custom_kinds currkind = str_to_custom_kind(select_between(b.custom_id, KINDTYPE_WRAP));
+    const std::string currval = select_between(b.custom_id, CUSTOMVAL_WRAP);
+
+    switch(currkind) {
+    case custom_kinds::SWITCH:
+        trigg.value = (currval == "1");
+        break;
+    case custom_kinds::STRING:
+        trigg.value = currval;
+        break;
+    case custom_kinds::ID:
+        trigg.value = dpp::from_string<dpp::snowflake>(currval);
+        break;
+    default:
+        trigg.value = std::monostate();
+    }
+    
+    link_refs();
 }
 
 transl_button_event::transl_button_event(const dpp::select_click_t& b)
-    : ifslcclick(&b), group_id(select_between(b.custom_id, GROUPID_WRAP)), 
-    trigger_id(b.values.size() ? select_between(b.values[0], ITEMNAME_WRAP) : ""),
-    custom_value(b.values.size() ? select_between(b.values[0], CUSTOMVAL_WRAP) : ""),
-    custom_kind(b.values.size() ? str_to_custom_kind(select_between(b.values[0], KINDTYPE_WRAP)) : custom_kinds::STRING)
+    : ifslcclick(&b)
 {
     fill_from_msg(b.command.msg);
-}
 
-bool transl_button_event::push_button(button b)
-{
-    if (!can_push_button()) return false;
+    trigg.group_name = b.custom_id;
+    if (b.values.size()) {
+        trigg.item_name = select_between(b.values[0], ITEMNAME_WRAP);
+        const custom_kinds currkind = str_to_custom_kind(select_between(b.values[0], KINDTYPE_WRAP));
+        const std::string currval = select_between(b.values[0], CUSTOMVAL_WRAP);
 
-    b.group_id = group_id;
-    b.is_trigger = false;
-    
-    button_vec.push_back(b);
-    return true;
-}
-
-bool transl_button_event::push_select(select_row ro)
-{
-    if (!can_push_select()) return false;
-
-    for(auto& i : ro.items) {
-        i.is_trigger = false;
+        switch(currkind) {
+        case custom_kinds::SWITCH:
+            trigg.value = (currval == "1");
+            break;
+        case custom_kinds::STRING:
+            trigg.value = currval;
+            break;
+        case custom_kinds::ID:
+            trigg.value = dpp::from_string<dpp::snowflake>(currval);
+            break;
+        default:
+            trigg.value = std::monostate();
+        }
     }
 
-    ro.group_id = group_id;
+    link_refs();
+}
 
-    select_vec.push_back(ro);
+
+transl_button_event::transl_button_event(const dpp::form_submit_t& b)
+    : iffrmclick(&b)
+{
+    fill_from_msg(b.command.msg);
+    trigg.item_name = select_between(b.custom_id, ITEMNAME_WRAP);
+    trigg.group_name = select_between(b.custom_id, GROUPID_WRAP);
+    trigg.value = std::monostate{};
+
+    for(const auto& eachform : b.components)
+    {
+        for(const auto& i : eachform.components) {
+            if (i.type != dpp::cot_text) continue; // can only be 4
+
+            if (std::holds_alternative<std::string>(i.value)) modal_response.push_back({i.custom_id, std::get<std::string>(i.value)});
+            else if (std::holds_alternative<int64_t>(i.value)) modal_response.push_back({i.custom_id, std::to_string(std::get<int64_t>(i.value))});
+            else if (std::holds_alternative<double>(i.value)) modal_response.push_back({i.custom_id, std::to_string(std::get<double>(i.value))});
+        }
+    }
+
+    link_refs();
+}
+
+bool transl_button_event::push_or_replace(button_row b, const size_t p)
+{
+    if (!can_push()) return false;
+
+    for(auto& it : rows) {
+        if (std::holds_alternative<button_row>(it)){
+            button_row& ref = std::get<button_row>(it);
+            if (ref.group_name == b.group_name){
+                ref = b;
+                return true;
+            }
+        }
+    }
+
+    if (p >= rows.size()) rows.push_back(b);
+    else rows.insert(rows.begin() + p, b);
     return true;
 }
 
-std::vector<button>& transl_button_event::get_buttons()
+bool transl_button_event::push_or_replace(select_row b, const size_t p)
 {
-    return button_vec;
+    if (!can_push()) return false;
+
+    for(auto& it : rows) {
+        if (std::holds_alternative<select_row>(it)){
+            select_row& ref = std::get<select_row>(it);
+            if (ref.group_name == b.group_name){
+                ref = b;
+                return true;
+            }
+        }
+    }
+    
+    if (p >= rows.size()) rows.push_back(b);
+    else rows.insert(rows.begin() + p, b);
+    return true;
 }
 
-const std::vector<button>& transl_button_event::get_buttons() const
+std::vector<std::variant<select_row, button_row>>& transl_button_event::get_rows()
 {
-    return button_vec;
+    return rows;
 }
 
-custom_kinds transl_button_event::get_custom_kind() const
+const std::vector<std::variant<select_row, button_row>>& transl_button_event::get_rows() const
 {
-    return custom_kind;
+    return rows;
 }
 
-bool transl_button_event::get_custom_as_bool() const
+bool transl_button_event::find_button_do(const std::string& group, const std::string& name, std::function<void(item<button_props>&)> f)
 {
-    return custom_value == "1";
+    if (!f) return false;
+    for(auto& it : rows) {
+        if (std::holds_alternative<button_row>(it)){
+            button_row& ref = std::get<button_row>(it);
+            if (ref.group_name != group) continue;
+            for(auto& ea : ref.items) {
+                if (ea.name == name) {
+                    f(ea);
+                    return true;
+                }
+            }
+        }
+    }
+    return false;
 }
 
-dpp::snowflake transl_button_event::get_custom_as_snowflake() const
+bool transl_button_event::find_select_do(const std::string& group, const std::string& name, std::function<void(item<std::string>&)> f)
 {
-    return dpp::from_string<dpp::snowflake>(custom_value);
+    if (!f) return false;
+    for(auto& it : rows) {
+        if (std::holds_alternative<select_row>(it)){
+            select_row& ref = std::get<select_row>(it);
+            if (ref.group_name != group) continue;
+            for(auto& ea : ref.items) {
+                if (ea.name == name) {
+                    f(ea);
+                    return true;
+                }
+            }
+        }
+    }
+    return false;
 }
 
-const std::string& transl_button_event::get_custom_as_string() const
+const std::vector<std::pair<std::string, std::string>>& transl_button_event::get_modal_items() const
 {
-    return custom_value;
+    return modal_response;
 }
 
-std::vector<select_row>& transl_button_event::get_select()
+bool transl_button_event::remove_group_named(const std::string& srch, std::function<bool(size_t, size_t)> frule)
 {
-    return select_vec;
+    if (!frule) return false;
+    
+    for(auto it  = rows.begin(); it != rows.end();) {
+        if (std::holds_alternative<button_row>(*it))
+        {
+            button_row& i = std::get<button_row>(*it);
+            size_t fin_beg = i.group_name.find(srch);
+            if (fin_beg != std::string::npos){
+                if (frule(fin_beg, (i.group_name.size() - fin_beg - srch.size()))) {
+                    rows.erase(it);
+                    return true;
+                }
+            }
+            ++it;
+        }
+        else {
+            select_row& i = std::get<select_row>(*it);
+            size_t fin_beg = i.group_name.find(srch);
+            if (fin_beg != std::string::npos){
+                if (frule(fin_beg, (i.group_name.size() - fin_beg - srch.size()))) {
+                    rows.erase(it);
+                    return true;
+                }
+            }
+            ++it;
+        }
+    }
+    return false;
 }
 
-const std::vector<select_row>& transl_button_event::get_select() const
+bool transl_button_event::remove_group_named_all(const std::string& srch, std::function<bool(size_t, size_t)> frule)
 {
-    return select_vec;
+    if (!remove_group_named(srch, frule)) return false;
+    while (remove_group_named(srch, frule));
+    return true;
 }
 
 void transl_button_event::set_content(const std::string& str)
@@ -583,14 +668,19 @@ const std::string& transl_button_event::get_content() const
     return message_content;
 }
 
-bool transl_button_event::can_push_button() const
+const transl_button_event::trigger_info& transl_button_event::get_trigger() const
 {
-    return ((5 * select_vec.size()) + button_vec.size()) < 25;
+    return trigg;
 }
 
-bool transl_button_event::can_push_select() const
+bool transl_button_event::has_valid_ref() const
 {
-    return ((5 * select_vec.size()) + button_vec.size()) <= 20; // 21 or more means buttons + select already occup 5 rows. 
+    return trigg.target_if_button || trigg.target_if_select;
+}
+
+bool transl_button_event::can_push() const
+{
+    return rows.size() < 5;
 }
 
 bool transl_button_event::reply(const bool replac, std::function<void(dpp::message&)> dosmth) const
@@ -608,10 +698,12 @@ bool transl_button_event::reply(const bool replac, std::function<void(dpp::messa
     if (replac) {
         if (ifbtnclick) ifbtnclick->reply(dpp::ir_update_message, msg, autoerr);
         if (ifslcclick) ifslcclick->reply(dpp::ir_update_message, msg, autoerr);
+        if (iffrmclick) iffrmclick->reply(dpp::ir_update_message, msg, autoerr);
     }
     else {
         if (ifbtnclick) ifbtnclick->reply(msg, autoerr);
         if (ifslcclick) ifslcclick->reply(msg, autoerr);
+        if (iffrmclick) iffrmclick->reply(msg, autoerr);
     }
 
     return true;
@@ -622,53 +714,17 @@ dpp::message transl_button_event::generate_message() const
     dpp::message msg;
     msg.set_content(message_content);
 
-    dpp::component actrow;
-
-    for(const auto& i : button_vec) {
-        dpp::component _cp;
-
-        _cp.set_label(i.label)
-            .set_id(
-                GROUPID_WRAP + i.group_id + GROUPID_WRAP + 
-                ITEMNAME_WRAP + i.item_name + ITEMNAME_WRAP + 
-                KINDTYPE_WRAP + custom_kind_to_str(i.kind) + KINDTYPE_WRAP +
-                CUSTOMVAL_WRAP + i.get_custom_as_string() + CUSTOMVAL_WRAP
-                )
-            .set_type(dpp::cot_button)
-            .set_style(i.style);
-
-        if (i.custom_emoji.id != 0 || !i.custom_emoji.name.empty())
-            _cp.set_emoji(i.custom_emoji.format());
-
-        actrow.add_component(_cp);
-
-        if (actrow.components.size() >= 5) {
-            msg.add_component(actrow);
-            actrow.components.clear();
+    for(const auto& row : rows)
+    {
+        if (std::holds_alternative<button_row>(row)) // button row
+        {
+            const button_row& dis = std::get<button_row>(row);
+            if (dis.can_dump()) msg.add_component(dis.dump());
         }
-    }
-
-    if (actrow.components.size() > 0) {
-        msg.add_component(actrow);
-        actrow.components.clear();
-    }
-
-    for(const auto& j : select_vec) {
-        dpp::component cmp;
-        cmp.set_type(dpp::cot_selectmenu);
-        cmp.custom_id = GROUPID_WRAP + j.group_id + GROUPID_WRAP +
-            KINDTYPE_WRAP + custom_kind_to_str(j.kind) + KINDTYPE_WRAP +
-            CUSTOMVAL_WRAP + j.get_custom_as_string() + CUSTOMVAL_WRAP;
-
-        for(const auto& k : j.items) {
-            cmp.add_select_option(dpp::select_option(k.label, 
-                ITEMNAME_WRAP + k.item_name + ITEMNAME_WRAP + 
-                KINDTYPE_WRAP + custom_kind_to_str(k.kind) + KINDTYPE_WRAP +
-                CUSTOMVAL_WRAP + k.get_custom_as_string() + CUSTOMVAL_WRAP,
-                k.desc));
+        else { // select row
+            const select_row& dis= std::get<select_row>(row);
+            if (dis.can_dump()) msg.add_component(dis.dump());
         }
-
-        msg.add_component(dpp::component().add_component(cmp));
     }
 
     msg.set_flags(64);
@@ -676,6 +732,38 @@ dpp::message transl_button_event::generate_message() const
     return msg;
 }
 
+//dpp::component make_fancy_modal(const std::string& label, const std::string& groupid, const std::string& itemid)
+//{
+//    dpp::component nd;
+//    nd.set_label(label);
+//    nd.set_id(
+//        (groupid.empty() ? "" : (GROUPID_WRAP + groupid + GROUPID_WRAP)) +
+//        (itemid.empty() ? "" : (ITEMNAME_WRAP + itemid + ITEMNAME_WRAP))
+//    );
+//    nd.set_type(dpp::cot_text);
+//    return nd;
+//}
+
+
+dpp::interaction_modal_response modal_generate(const std::string& groupid, const std::string itemid, const std::string& title)
+{
+    return dpp::interaction_modal_response(GROUPID_WRAP + groupid + GROUPID_WRAP + ITEMNAME_WRAP + itemid + ITEMNAME_WRAP, title);
+}
+
+dpp::component& modal_add_component(dpp::interaction_modal_response& modal, const std::string& label,
+    const std::string id, const std::string placeholder, dpp::text_style_type styl, uint32_t min, uint32_t max)
+{
+    modal.add_component(
+        dpp::component()
+            .set_label(label)
+            .set_id(id)
+            .set_placeholder(placeholder)
+            .set_text_style(styl)
+            .set_min_length(min)
+            .set_max_length(max)
+    );
+    return modal.components.back().back();
+}
 
 bool unsafe_string_name(const std::string& s)
 {
