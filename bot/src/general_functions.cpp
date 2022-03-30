@@ -1,257 +1,5 @@
 #include <general_functions.hpp>
 
-//const std::string button_work::s_buttons[static_cast<size_t>(button_work::preset_buttons_selected::_SIZE)] = { "add-", "del-", "addg-", "delg-", "tag-", "sel-", "selclk-" };
-//const std::string button_work::s_row = "row-";
-//
-//void button_work::get_message_data(const dpp::message& m)
-//{
-//    dpp::component _tmp;
-//
-//    for(size_t p = 0; p < static_cast<size_t>(preset_buttons_selected::_SIZE); ++p) {
-//        if ((_tmp = find_component_starts_with(m.components, s_buttons[p])).custom_id.size()) {
-//            disabled[p] = _tmp.disabled;
-//
-//            if (base_id.empty()) 
-//                base_id = _tmp.custom_id.size() > s_buttons[p].size() ? _tmp.custom_id.substr(s_buttons[p].size()) : "";
-//
-//            switch(p) {
-//            case static_cast<size_t>(preset_buttons_selected::SELECT_CLICK):
-//                stored = _tmp.label;
-//                break;
-//            case static_cast<size_t>(preset_buttons_selected::CUSTOMTAG):
-//                stored = _tmp.label;
-//                break;
-//            }
-//
-//        }
-//    }
-//
-//    if ((_tmp = find_component_starts_with(m.components, s_row)).options.size()) {
-//        for (const auto& op : _tmp.options) rows.push_back(op);
-//    }    
-//}
-//
-//dpp::component button_work::find_component_starts_with(const std::vector<dpp::component>& v, const std::string& s)
-//{
-//    for(const auto& i : v) {
-//        if (i.custom_id.find(s) == 0) return i;
-//        if (i.components.size() > 0) {
-//            dpp::component found = find_component_starts_with(i.components, s);
-//            if (found.custom_id.size() > 0) return found;
-//        }
-//    }
-//    return {};
-//}
-//
-//std::string button_work::remove_s_buttons_tag(std::string s) const
-//{
-//    for(const auto& i : s_buttons) {        
-//        if (s.find(i) == 0) {
-//            return s.size() > i.size() ? s.substr(i.size()) : "";
-//        }
-//    }
-//    return s;
-//}
-//
-//std::string button_work::remove_s_row_tag(std::string s) const
-//{
-//    if (s.find(s_row) == 0) {
-//        return s.size() > s_row.size() ? s.substr(s_row.size()) : "";
-//    }
-//    return s;
-//}
-//
-//button_work::button_work(const std::string& tg, const preset_buttons mod)
-//    : base_id(tg), button_mode(mod)
-//{
-//}
-//
-//button_work::button_work(const dpp::button_click_t& im)
-//    : selected(remove_s_buttons_tag(im.custom_id)) // selected button
-//{
-//    // a row only would never trigger a button, so discarded option
-//    if (find_component_starts_with(im.command.msg.components, s_buttons[static_cast<size_t>(preset_buttons_selected::SELECT)]).custom_id.size() > 0) { // found SELECT, must be select
-//        button_mode = preset_buttons::BUTTONSELECT;
-//    }
-//    else if (find_component_starts_with(im.command.msg.components, s_buttons[static_cast<size_t>(preset_buttons_selected::ADDGROUP)]).custom_id.size() > 0) { // found GROUP related, it's group
-//        button_mode = preset_buttons::ADDDELGROUP;
-//    }
-//    else { // must be then
-//        button_mode = preset_buttons::ADDDEL;
-//    }
-//
-//    get_message_data(im.command.msg);
-//}
-//
-//button_work::button_work(const dpp::select_click_t& im)
-//    : selected(im.values[0]) // selected row, custom_id is row ID, not selected on row.
-//{  
-//    base_id = remove_s_row_tag(im.custom_id);
-//
-//    if (im.command.msg.components.size() == 1) { // if has one and it's select, row only ofc
-//        button_mode = preset_buttons::ROWONLY;
-//    }
-//    else if (find_component_starts_with(im.command.msg.components, s_buttons[static_cast<size_t>(preset_buttons_selected::SELECT)]).custom_id.size() > 0) { // found SELECT, must be select
-//        button_mode = preset_buttons::BUTTONSELECT;
-//    }
-//    else if (find_component_starts_with(im.command.msg.components, s_buttons[static_cast<size_t>(preset_buttons_selected::ADDGROUP)]).custom_id.size() > 0) { // found GROUP related, it's group
-//        button_mode = preset_buttons::ADDDELGROUP;
-//    }
-//    else { // must be then
-//        button_mode = preset_buttons::ADDDEL;
-//    }
-//
-//    get_message_data(im.command.msg);
-//}
-//
-//button_work::preset_buttons_selected button_work::interpret_selected() const
-//{
-//    for(size_t p = 0; p < static_cast<size_t>(preset_buttons_selected::_SIZE); ++p) {
-//        if (selected.find(s_buttons[static_cast<size_t>(p)]) == 0) return static_cast<preset_buttons_selected>(p);
-//    }
-//    return preset_buttons_selected::_SIZE;
-//}
-//
-//bool button_work::get_disabled(const preset_buttons_selected k) const
-//{
-//    if (k != preset_buttons_selected::_SIZE) return disabled[static_cast<size_t>(k)];
-//    return false;
-//}
-//
-//void button_work::set_disabled(const preset_buttons_selected k, const bool e)
-//{
-//    if (k != preset_buttons_selected::_SIZE) disabled[static_cast<size_t>(k)] = e;
-//}
-//
-//dpp::component button_work::generate_buttons() const
-//{
-//    if (base_id.empty()) throw std::runtime_error("CUSTOM_ID WAS EMPTY SOMEHOW, THIS IS NOT GOOD!");
-//
-//    dpp::component host;
-//
-//    switch(button_mode) {
-//    case preset_buttons::BUTTONSELECT:
-//    {
-//        host.add_component(dpp::component()
-//            .set_type(dpp::cot_button)
-//            .set_style(dpp::cos_primary)
-//            .set_label("Select")
-//            .set_id(s_buttons[static_cast<size_t>(preset_buttons_selected::SELECT)] + base_id)
-//            .set_disabled(get_disabled(preset_buttons_selected::SELECT))
-//            .set_emoji("📝")
-//        );
-//        if (stored.size()) {
-//            host.add_component(dpp::component()
-//                .set_type(dpp::cot_button)
-//                .set_style(dpp::cos_primary)
-//                .set_label(stored)
-//                .set_id(s_buttons[static_cast<size_t>(preset_buttons_selected::SELECT_CLICK)] + base_id)
-//                .set_disabled(get_disabled(preset_buttons_selected::SELECT_CLICK))
-//            );
-//        }
-//    }
-//        break;
-//    case preset_buttons::ADDDEL:
-//    {
-//        host.add_component(dpp::component()
-//            .set_type(dpp::cot_button)
-//            .set_style(dpp::cos_primary)
-//            .set_label("Add")
-//            .set_id(s_buttons[static_cast<size_t>(preset_buttons_selected::ADD)] + base_id)
-//            .set_disabled(get_disabled(preset_buttons_selected::ADD))
-//            .set_emoji("📝")
-//        );
-//        if (stored.size()) {
-//            host.add_component(dpp::component()
-//                .set_type(dpp::cot_button)
-//                .set_style(dpp::cos_primary)
-//                .set_label(stored)
-//                .set_id(s_buttons[static_cast<size_t>(preset_buttons_selected::CUSTOMTAG)] + base_id)
-//                .set_disabled(true)
-//            );
-//        }
-//        host.add_component(dpp::component()
-//            .set_type(dpp::cot_button)
-//            .set_style(dpp::cos_danger)
-//            .set_label("Remove")
-//            .set_id(s_buttons[static_cast<size_t>(preset_buttons_selected::DEL)] + base_id)
-//            .set_disabled(get_disabled(preset_buttons_selected::DEL))
-//            .set_emoji("🗑️")
-//        );
-//    }
-//        break;
-//    case preset_buttons::ADDDELGROUP:
-//    {
-//        host.add_component(dpp::component()
-//            .set_type(dpp::cot_button)
-//            .set_style(dpp::cos_primary)
-//            .set_label("Add group")
-//            .set_id(s_buttons[static_cast<size_t>(preset_buttons_selected::ADDGROUP)] + base_id)
-//            .set_disabled(get_disabled(preset_buttons_selected::ADDGROUP))
-//            .set_emoji("📝")
-//        );
-//        host.add_component(dpp::component()
-//            .set_type(dpp::cot_button)
-//            .set_style(dpp::cos_danger)
-//            .set_label("Remove group")
-//            .set_id(s_buttons[static_cast<size_t>(preset_buttons_selected::DELGROUP)] + base_id)
-//            .set_disabled(get_disabled(preset_buttons_selected::DELGROUP))
-//            .set_emoji("🗑️")
-//        );
-//        if (stored.size()) {
-//            host.add_component(dpp::component()
-//                .set_type(dpp::cot_button)
-//                .set_style(dpp::cos_primary)
-//                .set_label(stored)
-//                .set_id(s_buttons[static_cast<size_t>(preset_buttons_selected::CUSTOMTAG)] + base_id)
-//                .set_disabled(true)
-//            );
-//        }
-//        host.add_component(dpp::component()
-//            .set_type(dpp::cot_button)
-//            .set_style(dpp::cos_primary)
-//            .set_label("Add item")
-//            .set_id(s_buttons[static_cast<size_t>(preset_buttons_selected::ADD)] + base_id)
-//            .set_disabled(get_disabled(preset_buttons_selected::ADD))
-//            .set_emoji("📝")
-//        );
-//        host.add_component(dpp::component()
-//            .set_type(dpp::cot_button)
-//            .set_style(dpp::cos_danger)
-//            .set_label("Remove item")
-//            .set_id(s_buttons[static_cast<size_t>(preset_buttons_selected::DEL)] + base_id)
-//            .set_disabled(get_disabled(preset_buttons_selected::DEL))
-//            .set_emoji("🗑️")
-//        );
-//    }
-//        break;
-//    }
-//
-//    return host;
-//}
-//
-//dpp::component button_work::generate_rows() const
-//{
-//    if (base_id.empty()) throw std::runtime_error("CUSTOM_ID WAS EMPTY SOMEHOW, THIS IS NOT GOOD!");
-//
-//    dpp::component rw;
-//    rw.set_label("Select one");
-//    rw.set_id(s_row + base_id);
-//    rw.set_type(dpp::cot_selectmenu);
-//    for(const auto& i : rows) rw.add_select_option(i);
-//
-//    return dpp::component().add_component(rw);
-//}
-//
-//void button_work::replace_components_of(dpp::message& msg)
-//{
-//    msg.components.clear();
-//    if (button_mode != preset_buttons::ROWONLY) msg.add_component(generate_buttons());
-//    if (rows.size()) msg.add_component(generate_rows());
-//}
-
-
-
 select_row& select_row::set_group_name(const std::string& nnam)
 {
     if(unsafe_string_name(nnam)) throw std::invalid_argument("Unsafe name! May break stuff!");
@@ -683,9 +431,9 @@ bool transl_button_event::can_push() const
     return rows.size() < 5;
 }
 
-bool transl_button_event::reply(const bool replac, std::function<void(dpp::message&)> dosmth) const
+bool transl_button_event::reply(const bool silent, const bool replac, std::function<void(dpp::message&)> dosmth) const
 {
-    dpp::message msg = generate_message();
+    dpp::message msg = generate_message(silent);
     if (dosmth) dosmth(msg);
 
     const auto autoerr = [](const dpp::confirmation_callback_t& e){
@@ -709,7 +457,7 @@ bool transl_button_event::reply(const bool replac, std::function<void(dpp::messa
     return true;
 }
 
-dpp::message transl_button_event::generate_message() const
+dpp::message transl_button_event::generate_message(const bool silent) const
 {
     dpp::message msg;
     msg.set_content(message_content);
@@ -727,7 +475,7 @@ dpp::message transl_button_event::generate_message() const
         }
     }
 
-    msg.set_flags(64);
+    if (silent) msg.set_flags(dpp::m_ephemeral);
 
     return msg;
 }

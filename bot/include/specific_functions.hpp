@@ -63,12 +63,12 @@ dpp::component& set_boolean_button(const bool, dpp::component&);
 dpp::message make_ephemeral_message(const std::string& = {});
 std::string generate_guild_listing_role(const std::shared_ptr<guild_info>& guil, std::string& back_select, size_t& back_vec_len, size_t& selected, const std::string& search_for);
 // roleguild_auto_do can generate a new message if dpp::message& is empty-ish. It updates whatever is there.
-dpp::message roleguild_auto_do(const std::shared_ptr<guild_info>&, const dpp::message&, const roleguild_tasks, std::variant<std::monostate, guild_info::pair_id_name, std::string>);
+//dpp::message roleguild_auto_do(const std::shared_ptr<guild_info>&, const dpp::message&, const roleguild_tasks, std::variant<std::monostate, guild_info::pair_id_name, std::string>);
 //dpp::component make_selectable_list(const std::string&, const size_t, std::vector<dpp::select_option>);
 //dpp::component& update_selectable_list(dpp::component&, const size_t, std::vector<dpp::select_option>);
 bool auto_handle_button_switch(const dpp::interaction_create_t&, const std::string&, std::function<void(dpp::component&)>);
 int64_t interpret_color(const std::string&);
-std::string print_hex(const int64_t);
+std::string print_hex_color_auto(const int64_t);
 discord_slashcommands slash_to_discord_command(const std::string&);
 bool is_member_admin(const dpp::guild_member&);
 // user pts, current level, points needed for next

@@ -107,7 +107,6 @@ struct button_row : public generic_row {
     bool can_dump() const;
 };
 
-
 class transl_button_event {
 public:
     struct trigger_info {
@@ -169,10 +168,11 @@ public:
     bool has_valid_ref() const;
     bool can_push() const;
 
-    // replace old message? Do something with the message before sending?
-    bool reply(const bool = true, std::function<void(dpp::message&)> = {}) const;
+    // replace old message? Do something with the message before sending? (first bool == silent aka ephemeral?)
+    bool reply(const bool, const bool = true, std::function<void(dpp::message&)> = {}) const;
 
-    dpp::message generate_message() const;
+    // generate bool -> ephemeral?
+    dpp::message generate_message(const bool) const;
 };
 
 //dpp::component make_fancy_modal(const std::string& label, const std::string& groupid, const std::string& itemid);
