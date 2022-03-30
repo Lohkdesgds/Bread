@@ -10,15 +10,7 @@
       "default_permission": true,
       "description": "Paste clipboard reference here",
       "name": "paste",
-      "options": [
-        {
-          "autocomplete": false,
-          "description": "Your comment about you're referencing",
-          "name": "text",
-          "required": false,
-          "type": 3
-        }
-      ],
+      "options": [],
       "type": 1
     },
     {

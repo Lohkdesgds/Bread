@@ -83,23 +83,25 @@ void user_info::from_json(const nlohmann::json& j)
 user_info::user_info(const dpp::snowflake& id)
     : __user_id(id)
 {
-    std::ifstream cfile(needed_paths[user_props::user_path_off] + std::to_string(__user_id));
-    if (!cfile.is_open() || !cfile.good()) return;
-
-    std::stringstream buffer;
-    buffer << cfile.rdbuf();
-    const auto js = nlohmann::json::parse(buffer.str(), nullptr, false);
+//    std::ifstream cfile(needed_paths[user_props::user_path_off] + std::to_string(__user_id));
+//    if (!cfile.is_open() || !cfile.good()) return;
+//
+//    std::stringstream buffer;
+//    buffer << cfile.rdbuf();
+//    const auto js = nlohmann::json::parse(buffer.str(), nullptr, false);
+    auto js = get_from_file(needed_paths[user_props::user_path_off], std::to_string(__user_id), ".json");
 
     from_json(js);
 }
 
 user_info::~user_info()
 {
-    std::ofstream cfile(needed_paths[user_props::user_path_off] + std::to_string(__user_id));
-    if (!cfile.is_open() || !cfile.good()) {
-        Lunaris::cout << Lunaris::console::color::RED << "FATAL ERROR: Can't save user #" << __user_id;
-        return;
-    }
-
-    cfile << to_json();
+    save_file(to_json(), needed_paths[user_props::user_path_off], std::to_string(__user_id), ".json");
+//    std::ofstream cfile(needed_paths[user_props::user_path_off] + std::to_string(__user_id));
+//    if (!cfile.is_open() || !cfile.good()) {
+//        Lunaris::cout << Lunaris::console::color::RED << "FATAL ERROR: Can't save user #" << __user_id;
+//        return;
+//    }
+//
+//    cfile << to_json();
 }

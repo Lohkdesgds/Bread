@@ -499,8 +499,12 @@ dpp::interaction_modal_response modal_generate(const std::string& groupid, const
 }
 
 dpp::component& modal_add_component(dpp::interaction_modal_response& modal, const std::string& label,
-    const std::string id, const std::string placeholder, dpp::text_style_type styl, uint32_t min, uint32_t max)
+    const std::string id, const std::string placeholder, dpp::text_style_type styl, bool require, uint32_t min, uint32_t max)
 {
+    if (modal.components.size() && modal.components.back().size() && !modal.components.back().back().custom_id.empty()) {
+        modal.add_row();
+    }
+
     modal.add_component(
         dpp::component()
             .set_label(label)
@@ -509,6 +513,7 @@ dpp::component& modal_add_component(dpp::interaction_modal_response& modal, cons
             .set_text_style(styl)
             .set_min_length(min)
             .set_max_length(max)
+            .set_required(require)
     );
     return modal.components.back().back();
 }
@@ -554,6 +559,25 @@ std::string select_between(const std::string& e, const char c)
 	return e.substr(a + 1, b - (a + 1));
 }
 
+std::vector<std::string> extract_emojis_auto(const std::string& src)
+{
+    std::vector<std::string> emojis;
+    std::stringstream ss(src);
+    std::string token;
+    while (std::getline(ss, token, ';')){                    
+        while(token.length() && (token.front() == ' ' || token.front() == '<' || token.front() == 'a' || token.front() == ':'))
+            token.erase(token.begin());
+        
+        while(token.length() && (token.back() == ' ' || token.back() == '>')) 
+            token.pop_back();
+
+        if (token.size()) {
+            emojis.push_back(token);
+        }
+    }
+    return emojis;
+}
+
 void lock_indefinitely()
 {
     while(1) std::this_thread::sleep_for(std::chrono::seconds(3600));
@@ -578,12 +602,90 @@ std::vector<dpp::snowflake> slice_string_auto_snowflake(const std::string& str)
     return nd;
 }
 
+std::string get_customid_as_str(const std::vector<dpp::component>& v, const std::string& key)
+{
+    for(const auto& i : v) {
+        if (i.custom_id == key) {
+            try {
+                return std::get<std::string>(i.value);
+            }
+            catch(...) {
+                return {};
+            }
+        }
+        if (i.components.size()) {
+            auto _str = get_customid_as_str(i.components, key);
+            if (_str.size()) return _str;
+        }
+    }
+    return {};
+}
+
 unsigned long long get_time_ms()
 {
     return std::chrono::duration_cast<std::chrono::duration<unsigned long long, std::milli>>(std::chrono::system_clock::now().time_since_epoch()).count();
 }
 
-//dpp::component generate_button_auto(const preset_buttons pre, const std::string tagg, const std::string& middl, const std::vector<bool> disab)
-//{
-//    
-//}
+nlohmann::json get_from_file(const std::string& path, const std::string& name, const std::string& extension)
+{
+    try{
+        const auto do_it = [](const std::string& fullpath, nlohmann::json& js) {
+            std::ifstream cfile(fullpath);
+            if (!cfile.is_open() || !cfile.good()) return false;
+
+            std::stringstream buffer;
+            buffer << cfile.rdbuf();
+            js = nlohmann::json::parse(buffer.str(), nullptr, false);
+
+            return !js.empty() && !js.is_discarded();
+        };
+
+        nlohmann::json j;
+        
+        if (!do_it(path + name + extension, j)){
+            if (!do_it(path + name + file_alt_way + extension, j)){
+                return j;
+            }
+        }
+
+        return j;
+    }
+    catch(const std::exception& e) {
+        Lunaris::cout << Lunaris::console::color::DARK_RED << "[ERROR] Couldn't load data from '" << name << "': " << e.what() << ". Assuming corrupted file.";
+    }
+    catch(...) {
+        Lunaris::cout << Lunaris::console::color::DARK_RED << "[ERROR] Couldn't load data from '" << name << ". Assuming corrupted file.";
+    }
+    return {};
+}
+
+bool save_file(const nlohmann::json& j, const std::string& path, const std::string& name, const std::string& extension)
+{
+    try{
+        const std::string tostr = j.dump(1);
+
+        if (tostr.empty() || name.empty()) return false;
+
+        const auto do_it_save = [](const std::string& fullpath, const std::string& buf) {
+            std::ofstream cfile(fullpath);
+            if (cfile.is_open() && cfile.good()) {
+                cfile << buf;
+                cfile.flush();
+                return true;
+            }
+            Lunaris::cout << Lunaris::console::color::RED << "Can't save file @ '" << fullpath << "'!";
+            return false;
+        };
+
+        for(size_t tries = 0; tries < 5 && !do_it_save(path + name + extension, tostr); tries++);
+        for(size_t tries = 0; tries < 5 && !do_it_save(path + name + file_alt_way + extension, tostr); tries++);
+        return true;
+    }
+    catch(const std::exception& e) {
+        Lunaris::cout << Lunaris::console::color::DARK_RED << "[ERROR] Couldn't save data from '" << name << "': " << e.what() << ".";
+    }
+    catch(...) {
+        Lunaris::cout << Lunaris::console::color::DARK_RED << "[ERROR] Couldn't save data from '" << name << ".";
+    }
+    return false;
+}

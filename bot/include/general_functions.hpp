@@ -6,6 +6,8 @@
 #include <console.h>
 #include <bomb.h>
 
+#include <defaults.hpp>
+
 constexpr char GROUPID_WRAP = '$';
 constexpr char ITEMNAME_WRAP = '@';
 constexpr char CUSTOMVAL_WRAP = '%';
@@ -179,7 +181,7 @@ public:
 
 dpp::interaction_modal_response modal_generate(const std::string& groupid, const std::string itemid, const std::string& title);
 dpp::component& modal_add_component(dpp::interaction_modal_response& modal, const std::string& label,
-    const std::string id, const std::string placeholder, dpp::text_style_type styl, uint32_t min = 0, uint32_t max = 0);    
+    const std::string id, const std::string placeholder, dpp::text_style_type styl, bool require = false, uint32_t min = 0, uint32_t max = 0);    
 
 bool unsafe_string_name(const std::string&);
 std::string custom_kind_to_str(const custom_kinds);
@@ -189,6 +191,9 @@ const bool emoji_to_bool(const std::string&);
 
 std::string select_between(const std::string&, const char);
 
+// expects: a;b;c;d;e...
+std::vector<std::string> extract_emojis_auto(const std::string&);
+std::string get_customid_as_str(const std::vector<dpp::component>&, const std::string&);
 
 void lock_indefinitely();
 template<typename T, typename K> 
@@ -199,6 +204,9 @@ bool find_json_array_autoabort(const nlohmann::json&, const T&, K&, std::functio
 std::vector<dpp::snowflake> slice_string_auto_snowflake(const std::string&);
 
 unsigned long long get_time_ms();
+
+nlohmann::json get_from_file(const std::string& path, const std::string& name, const std::string& extension);
+bool save_file(const nlohmann::json& j, const std::string& path, const std::string& name, const std::string& extension);
 
 // generates the lower ADD/REMOVE or ADD/STRING/REMOVE or ADD/REMOVE/STRING/ADD/REMOVE buttons (vector = disabled? A B C D)
 // PRESET, custom_id format, MIDDLE STRING (if needed, custom custom), disable ordering

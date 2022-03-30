@@ -6,6 +6,7 @@
 const std::string needed_paths[] = {"./bot/", "./guilds/", "./users/"};
 const std::string config_path = "./bot/config.json";
 const std::string slash_path = "./bot/slashes.json";
+const std::string file_alt_way = "_alt";
 const auto default_intents = dpp::i_default_intents | dpp::i_message_content;
 
 const auto factory_default_time = std::chrono::seconds(120); // 2 min in memory

@@ -105,10 +105,12 @@ void g_on_message(const dpp::message_create_t& ev)
         if (you->points < (-boost_final)) you->points = 0;
         else you->points += boost_final;
     }
+    else {
+        you->points_per_guild[ev.msg.guild_id] += boost_final;
+        you->points += boost_final;
+    }
     if (boost_final > 0) you->times_they_got_positive_points++;
     if (boost_final < 0) you->times_they_got_negative_points++;
-
-    //Lunaris::cout << ev.msg->author->username << " -> " << std::to_string(boost_final) ;
         
     mull old_lvl_g = 1, old_lvl_l = 1;
     mull new_lvl_g = 1, new_lvl_l = 1;
@@ -162,13 +164,11 @@ void g_on_message(const dpp::message_create_t& ev)
         }
     }
 
+    if (!you->show_level_up_messages || guil->block_levelup_user_event) return;
 
     dpp::message replying;
     replying.set_type(dpp::message_type::mt_reply);
 
-    if (!you->show_level_up_messages || guil->block_levelup_user_event) { // on block, only user sees
-        replying.set_flags(dpp::m_ephemeral);
-    }
     if (const auto _temp = guil->fallback_levelup_message_channel; _temp != 0) { // else follow guild rules
         replying.channel_id = _temp;
     }
@@ -177,7 +177,6 @@ void g_on_message(const dpp::message_create_t& ev)
         replying.message_reference.channel_id = ev.msg.channel_id;
         replying.message_reference.message_id = ev.msg.id;
     }
-
 
     std::string desc = (was_level_up ? ("📈 **LEVEL UP**\n") : ("📉 **LEVEL DOWN**\n"));
     if (global_level_up || global_level_down) desc += (desc.length() ? "\n" : "") + (u8"✨ **GLOBAL:** " + std::string(was_level_up ? u8"🔺" : u8"🔻") + u8" `LEVEL " + std::to_string(new_lvl_g) + "`");
@@ -193,13 +192,13 @@ void g_on_message(const dpp::message_create_t& ev)
                 .icon_url = ev.msg.author.get_avatar_url(256)
             })
         .set_description(desc)
-        .set_color((you->pref_color < 0 ? random() : you->pref_color) % 0xFFFFFF)
+        .set_color((you->pref_color < 0 ? random() : you->pref_color))
         .set_thumbnail(images::points_image_url);
 
     replying.embeds.push_back(autoembed);
     replying.set_content("");
 
-    ev.from->creator->message_create(replying);
+    ev.from->creator->message_create(replying, error_autoprint);
 }
 
 void g_on_ready(const dpp::ready_t& ev, safe_data<slash_global>& sg)
@@ -320,6 +319,131 @@ void g_on_modal(const dpp::form_submit_t& ev)
             return;
         }
     }
+    if (trigg.group_name == "poll") {
+        if (trigg.item_name == "create") {
+            const auto you = tf_user_info[ev.command.usr.id];
+            if (!you) {
+                ev.reply(make_ephemeral_message("Something went wrong! You do not exist?! Please report error! I'm so sorry."));
+                return;
+            }
+
+            const std::string title = get_customid_as_str(ev.components, "title"); // a must have
+            const std::string desc = get_customid_as_str(ev.components, "desc");
+            const std::string emojis = get_customid_as_str(ev.components, "emojis");
+            const std::string imglink = get_customid_as_str(ev.components, "imglink");
+            const std::string color = get_customid_as_str(ev.components, "color");
+
+            auto emojis_selected = extract_emojis_auto(emojis);
+            if (emojis_selected.size() == 0) { emojis_selected.push_back(u8"👍"); emojis_selected.push_back(u8"👎"); }
+            const int64_t transl_clr = interpret_color(color);
+
+            dpp::message replying;
+            dpp::embed poll_enq;
+            dpp::embed_author author;
+
+            author.name = ev.command.usr.format_username();
+            author.icon_url = ev.command.usr.get_avatar_url(256);
+
+            poll_enq.set_author(author);
+            poll_enq.set_title(title);
+            if (desc.size()) poll_enq.set_description(desc);
+            poll_enq.set_color((transl_clr < 0 ? (you->pref_color < 0 ? random() : you->pref_color) : transl_clr));
+            poll_enq.set_thumbnail(images::poll_image_url);
+            if (imglink.size()) poll_enq.set_image(imglink);
+
+            replying.add_embed(poll_enq);
+
+            ev.reply(replying);
+
+            ev.get_original_response([dmbcore = ev.from->creator, emojis_selected](const dpp::confirmation_callback_t& data) {
+                if (data.is_error()) {
+                    cout << console::color::DARK_RED << "Someone called /poll and had issues: " << data.get_error().message;
+                    return;
+                }
+                dpp::message msg = std::get<dpp::message>(data.value);
+                for(auto& i : emojis_selected) {
+                    dmbcore->message_add_reaction(msg, i);
+                }
+            });
+            return;
+        }
+    }
+    if (trigg.group_name == "paste") {
+        if (trigg.item_name == "post") {
+            const auto you = tf_user_info[ev.command.usr.id];
+            if (!you) { ev.reply(make_ephemeral_message("Something went wrong! You do not exist?! Please report error! I'm so sorry.")); return; }
+            const auto guil = tf_guild_info[ev.command.guild_id];
+            if (!guil) { ev.reply(make_ephemeral_message("Something went wrong! Guild do not exist?! Please report error! I'm so sorry.")); return; }
+
+            auto& clipboard = you->clipboard;
+
+            if (clipboard.guild_id != ev.command.guild_id && !guil->allow_external_paste){ ev.reply(make_ephemeral_message("This server doesn't allow paste from external sources.")); return; }
+
+            const std::string paste_content = get_customid_as_str(ev.components, "comment");
+                        
+            dpp::message replying;
+            ev.reply(dpp::interaction_response_type::ir_deferred_channel_message_with_source, replying);
+
+            ev.from->creator->message_get(clipboard.message_id, clipboard.channel_id, 
+            [ev, you, guil, replying, paste_content](const dpp::confirmation_callback_t data) mutable {
+                auto& clipboard = you->clipboard;
+
+                if (data.is_error()) {
+                    ev.edit_response(make_ephemeral_message("I couldn't get clipboard source! Is it not available anymore?"));
+                    you->clipboard.clear();
+                    return;
+                }
+
+                dpp::message sourcemsg = std::get<dpp::message>(data.value);
+
+                dpp::embed emb;
+                dpp::embed_author authr;
+                authr.icon_url = images::url_author_icon_clipboard;
+                authr.name = "Access source directly";
+                authr.url = clipboard.generate_url();
+
+                dpp::embed_footer emb_footer;
+                emb_footer.set_text("Referenced by " + ev.command.usr.format_username() +
+                    ", Source: " + sourcemsg.author.format_username() +
+                    ", Guild #" + std::to_string(clipboard.guild_id));
+
+                emb_footer.set_icon(ev.command.usr.get_avatar_url(256));
+
+                emb.set_author(authr);
+                emb.set_color((you->pref_color < 0 ? random() : you->pref_color));
+                emb.set_footer(emb_footer);
+
+                if (!paste_content.empty()){
+                    emb.description += "`Commented:`\n```\n";
+                    for (const auto& i : paste_content.substr(0, 280)) { if (i != '`') emb.description += i; }
+                    emb.description += "```\n";
+                }
+
+                if (!sourcemsg.content.empty()) {
+                    emb.description += "`Original text:`\n```\n";
+                    for (const auto& i : sourcemsg.content) { if (i != '`') emb.description += i; }
+                    emb.description += "```\n";
+                }
+                else {
+                    emb.description += "`Original message has no text`\n";
+                }
+
+                if (sourcemsg.attachments.size()) {
+                    emb.set_image(sourcemsg.attachments[0].url);
+                }
+
+                if (sourcemsg.embeds.size()) emb.description += "`Original message had embeds`";
+
+                replying.add_embed(emb);
+
+                // this is not really a cool thing
+                //for(const auto& i : sourcemsg.embeds) replying.add_embed(i);
+
+                ev.edit_response(replying);
+            });
+            return;
+        }
+    }
 
     wrk.set_content("UPDATED MODAL @ " + std::to_string(get_time_ms()) + 
         "\ngroup_name=" + trigg.group_name + 
@@ -418,7 +542,7 @@ void g_on_modal(const dpp::form_submit_t& ev)
 //            poll_enq.set_author(author);
 //            poll_enq.set_title(title);
 //            if (desc.size()) poll_enq.set_description(desc);
-//            poll_enq.set_color((transl_clr < 0 ? (you->pref_color < 0 ? random() : you->pref_color) : transl_clr) % 0xFFFFFF);
+//            poll_enq.set_color((transl_clr < 0 ? (you->pref_color < 0 ? random() : you->pref_color) : transl_clr));
 //            poll_enq.set_thumbnail(images::poll_image_url);
 //            if (imglink.size()) poll_enq.set_image(imglink);
 //
@@ -502,7 +626,7 @@ void g_on_modal(const dpp::form_submit_t& ev)
 //                emb_footer.set_icon(ev.command.usr.get_avatar_url(256));
 //
 //                emb.set_author(authr);
-//                emb.set_color((you->pref_color < 0 ? random() : you->pref_color) % 0xFFFFFF);
+//                emb.set_color((you->pref_color < 0 ? random() : you->pref_color));
 //                emb.set_footer(emb_footer);
 //
 //                if (!paste_content.empty()){
@@ -1151,9 +1275,11 @@ void g_on_select(const dpp::select_click_t& ev)
 
     if (!wrk.has_valid_ref()) { ev.reply(make_ephemeral_message("Something went wrong! Internal reference got LOST!")); return; }
 
-    if (wrk.get_trigger().group_name == "guildconf") 
+    auto& trigg = wrk.get_trigger();
+
+    if (trigg.group_name == "guildconf") 
     {
-        if (wrk.get_trigger().item_name == "export") // by default embeds/files won't stay
+        if (trigg.item_name == "export") // by default embeds/files won't stay
         {
             //clear_tmp();
             wrk.remove_group_named_all("TMP");
@@ -1165,7 +1291,7 @@ void g_on_select(const dpp::select_click_t& ev)
             wrk.reply(!guil->commands_public, true, [&](dpp::message& msg){ msg.add_file("guild_data.json", guil->to_json().dump(2)); });
             return;
         }
-        if (wrk.get_trigger().item_name == "comm")
+        if (trigg.item_name == "comm")
         {
             const auto guil = tf_guild_info[ev.command.guild_id];
             if (!guil) { ev.reply(make_ephemeral_message("Something went wrong! Guild do not exist?! Please report error! I'm so sorry.")); return; }
@@ -1183,7 +1309,7 @@ void g_on_select(const dpp::select_click_t& ev)
             wrk.reply(!guil->commands_public);
             return;
         }
-        if (wrk.get_trigger().item_name == "points")
+        if (trigg.item_name == "points")
         {
             //clear_tmp();
             wrk.remove_group_named_all("TMP");
@@ -1199,7 +1325,7 @@ void g_on_select(const dpp::select_click_t& ev)
             wrk.reply(!guil->commands_public);
             return;
         }
-        if (wrk.get_trigger().item_name == "roles")
+        if (trigg.item_name == "roles")
         {
             //clear_tmp();
             wrk.remove_group_named_all("TMP");
@@ -1214,7 +1340,7 @@ void g_on_select(const dpp::select_click_t& ev)
             wrk.reply(!guil->commands_public);
             return;            
         }
-        if (wrk.get_trigger().item_name == "aroles") // auto roles
+        if (trigg.item_name == "aroles") // auto roles
         {
             //clear_tmp();
             wrk.remove_group_named_all("TMP");
@@ -1229,7 +1355,7 @@ void g_on_select(const dpp::select_click_t& ev)
             wrk.reply(!guil->commands_public);
             return;
         }
-        if (wrk.get_trigger().item_name == "lroles") // level roles
+        if (trigg.item_name == "lroles") // level roles
         {
             //clear_tmp();
             wrk.remove_group_named_all("TMP");
@@ -1245,11 +1371,106 @@ void g_on_select(const dpp::select_click_t& ev)
             return;
         }
     }
+    if (trigg.group_name == "showinfo") {
+
+        // ==================== SHARED STUFF GOING ON ==================== //
+        dpp::snowflake usrid = 0;
+        wrk.find_button_do("showinfotarget", "select", [&](item<button_props>& i){
+            usrid = i.get_custom_as_snowflake();
+        });
+
+        if (usrid == 0) {
+            ev.reply(make_ephemeral_message("Something went wrong! User not found?"));
+            return;
+        }
+
+        dpp::user currusr;
+        {
+            dpp::cache<dpp::user>* cach = dpp::get_user_cache();
+            std::shared_lock<std::shared_mutex> lu(cach->get_mutex());
+            const auto& vec = cach->get_container();
+
+            auto it = std::find_if(vec.begin(), vec.end(), [&](const std::pair<dpp::snowflake, dpp::user*>& u){ return u.first == usrid; });
+            if (it == vec.end()) {
+                ev.reply(make_ephemeral_message("Something went wrong! Cannot find user somehow. Cache is not up to date?"));
+                return;
+            }
+
+            currusr = *it->second;
+        }
+    
+        const auto you = tf_user_info[currusr.id];
+        if (!you) {
+            ev.reply(make_ephemeral_message("Something went wrong! You do not exist?! Please report error! I'm so sorry."));
+            return;
+        }
+
+        dpp::embed targetemb;
+        targetemb.set_author(dpp::embed_author{
+                .name = currusr.format_username(),
+                .url = currusr.get_avatar_url(256),
+                .icon_url = currusr.get_avatar_url(256)
+            });
+        targetemb.set_color((you->pref_color < 0 ? random() : you->pref_color));
+        targetemb.set_thumbnail(images::points_image_url);
+
+        wrk.set_content("");
+
+        // ==================== ENDOF SHARED STUFF GOING ON ==================== //
+
+        if (trigg.item_name == "localpt") {
+            unsigned long long local_level = 0, local_nextlevel = 0;
+            calc_user_level(you->points_per_guild[ev.command.guild_id], local_level, local_nextlevel);
+
+            targetemb.set_title("**__Local points__**");
+            targetemb.add_field("Current level", (u8"✨ " + std::to_string(local_level)), true );
+            targetemb.add_field("Points", (u8"🧬 " + std::to_string(you->points_per_guild[ev.command.guild_id])), true );
+            targetemb.add_field("Next level in", (u8"📈 " + std::to_string(local_nextlevel)), true );
+
+            wrk.reply(!guil->commands_public, true, [&](dpp::message& msg) {
+                msg.embeds.push_back(targetemb);
+            });
+            return;
+        }
+        if (trigg.item_name == "globalpt") {            
+            unsigned long long global_level = 0, global_nextlevel = 0;
+            calc_user_level(you->points, global_level, global_nextlevel);
+
+            targetemb.set_title("**__Global points__**");
+            targetemb.add_field("Current level", (u8"✨ " + std::to_string(global_level)), true );
+            targetemb.add_field("Points", (u8"🧬 " + std::to_string(you->points)), true );
+            targetemb.add_field("Next level in", (u8"📈 " + std::to_string(global_nextlevel)), true );
+
+            wrk.reply(!guil->commands_public, true, [&](dpp::message& msg) {
+                msg.embeds.push_back(targetemb);
+            });
+            return;
+
+        }
+        if (trigg.item_name == "statistics") {
+            targetemb.set_title("**__Statistics__**");
+            targetemb.add_field("Total messages", (u8"📚 " + std::to_string(you->messages_sent)), true);
+            targetemb.add_field("Messages here", (u8"📓 " + std::to_string(you->messages_sent_per_guild[ev.command.guild_id])), true);
+            targetemb.add_field("% messages here", (u8"🔖 " + std::to_string(static_cast<int>(((100 * you->messages_sent_per_guild[ev.command.guild_id])) / (you->messages_sent == 0 ? 1 : you->messages_sent))) + "%"), true);
+            targetemb.add_field("Total files", (u8"🗂️ " + std::to_string(you->attachments_sent)), true);
+            targetemb.add_field("Files here", (u8"📁 " + std::to_string(you->attachments_sent_per_guild[ev.command.guild_id])), true);
+            targetemb.add_field("% files here", (u8"⚙️ " + std::to_string(static_cast<int>((100 * you->attachments_sent_per_guild[ev.command.guild_id]) / (you->attachments_sent == 0 ? 1 : you->attachments_sent))) + "%"), true);
+            targetemb.add_field("Commands triggered", (u8"⚡ " + std::to_string(you->commands_used)), true);
+
+            wrk.reply(!guil->commands_public, true, [&](dpp::message& msg) {
+                msg.embeds.push_back(targetemb);
+            });
+            return;
+        }        
+
+        ev.reply(make_ephemeral_message("Something went wrong! Track: on_select > showinfo > ?"));
+        return;
+    }
 
     wrk.set_content("UPDATED @ " + std::to_string(get_time_ms()) + 
-        "\ngroup_name=" + wrk.get_trigger().group_name + 
-        "\nitem_name=" + wrk.get_trigger().item_name + 
-        "\ncustomdata=" + wrk.get_trigger().debug_value_as_string()
+        "\ngroup_name=" + trigg.group_name + 
+        "\nitem_name=" + trigg.item_name + 
+        "\ncustomdata=" + trigg.debug_value_as_string()
         );
 
     cout << console::color::DARK_AQUA << wrk.get_content();
@@ -1309,7 +1530,7 @@ void g_on_select(const dpp::select_click_t& ev)
 //            localpt.set_author(common_author);
 //            localpt.set_title("**__Local points__**");
 //            localpt.set_thumbnail(images::points_image_url);
-//            localpt.set_color((you->pref_color < 0 ? random() : you->pref_color) % 0xFFFFFF);
+//            localpt.set_color((you->pref_color < 0 ? random() : you->pref_color));
 //            localpt.add_field("Current level", (u8"✨ " + std::to_string(local_level)), true );
 //            localpt.add_field("Points", (u8"🧬 " + std::to_string(you->points_per_guild[ev.command.guild_id])), true );
 //            localpt.add_field("Next level in", (u8"📈 " + std::to_string(local_nextlevel)), true );
@@ -1391,7 +1612,7 @@ void g_on_select(const dpp::select_click_t& ev)
 //            globalpt.set_author(common_author);
 //            globalpt.set_title("**__Global points__**");
 //            globalpt.set_thumbnail(images::points_image_url);
-//            globalpt.set_color((you->pref_color < 0 ? random() : you->pref_color) % 0xFFFFFF);
+//            globalpt.set_color((you->pref_color < 0 ? random() : you->pref_color));
 //            globalpt.add_field("Current level", (u8"✨ " + std::to_string(global_level)), true );
 //            globalpt.add_field("Points", (u8"🧬 " + std::to_string(you->points)), true );
 //            globalpt.add_field("Next level in", (u8"📈 " + std::to_string(global_nextlevel)), true );
@@ -1469,7 +1690,7 @@ void g_on_select(const dpp::select_click_t& ev)
 //            statistics.set_author(common_author);
 //            statistics.set_title("**__Statistics__**");
 //            statistics.set_thumbnail(images::statistics_image_url);
-//            statistics.set_color((you->pref_color < 0 ? random() : you->pref_color) % 0xFFFFFF);
+//            statistics.set_color((you->pref_color < 0 ? random() : you->pref_color));
 //            statistics.add_field("Total messages", (u8"📚 " + std::to_string(you->messages_sent)), true);
 //            statistics.add_field("Messages here", (u8"📓 " + std::to_string(you->messages_sent_per_guild[ev.command.guild_id])), true);
 //            statistics.add_field("% messages here", (u8"🔖 " + std::to_string(static_cast<int>(((100 * you->messages_sent_per_guild[ev.command.guild_id])) / (you->messages_sent == 0 ? 1 : you->messages_sent))) + "%"), true);
@@ -1738,26 +1959,26 @@ void g_on_interaction(const dpp::interaction_create_t& ev)
             went_good = run_config_server(ev, cmd);
             break;
         case discord_slashcommands::PASTE:
-            went_good = run_paste(ev, cmd);
+            went_good = run_paste(ev, cmd); // all good
             break;
         case discord_slashcommands::PING:
             went_good = run_ping(ev); // all good
             break;
         case discord_slashcommands::POLL:
-            went_good = run_poll(ev, cmd);
+            went_good = run_poll(ev, cmd); // all good
             break;
         case discord_slashcommands::ROLES:
             went_good = run_roles(ev);
             break;
         case discord_slashcommands::SELF:
-            went_good = run_self(ev);
+            went_good = run_self(ev); // all good
             break;
         case discord_slashcommands::USERINFO:
         case discord_slashcommands::RC_SHOWINFO:
-            went_good = run_showinfo(ev);
+            went_good = run_showinfo(ev); // all good
             break;
         case discord_slashcommands::RC_COPY:
-            went_good = run_copy(ev, cmd);
+            went_good = run_copy(ev, cmd); // all good
             break;
         default:
             break;
@@ -2078,25 +2299,6 @@ bool change_component(std::vector<dpp::component>& vec, const std::string& key, 
         }
     }
     return false;
-}
-
-std::string get_customid_as_str(const std::vector<dpp::component>& v, const std::string& key)
-{
-    for(const auto& i : v) {
-        if (i.custom_id == key) {
-            try {
-                return std::get<std::string>(i.value);
-            }
-            catch(...) {
-                return {};
-            }
-        }
-        if (i.components.size()) {
-            auto _str = get_customid_as_str(i.components, key);
-            if (_str.size()) return _str;
-        }
-    }
-    return {};
 }
 
 std::string get_label(const std::vector<dpp::component>& v, const std::string& key)
@@ -2611,7 +2813,7 @@ bool run_botstatus(const dpp::interaction_create_t& ev, const dpp::command_inter
         .set_title("**__Bot information__**")
         //.set_description("**―――――――――――――――――――――**") // 21 lines
         //.set_footer(dpp::embed_footer().set_text(DPP_VERSION_TEXT).set_icon(images::botstatus_image_dpp_url))
-        .set_color(random() % 0xFFFFFF)
+        .set_color(random())
         .set_thumbnail(images::botstatus_image_url)
         .add_field(
             "Online for", (u8"⏲️ " + ev.from->creator->uptime().to_string()), true
@@ -2685,55 +2887,14 @@ bool run_self(const dpp::interaction_create_t& ev)
 
 bool run_poll(const dpp::interaction_create_t& ev, const dpp::command_interaction& cmd)
 {
-    dpp::interaction_modal_response modal("poll-create", "Create a poll");
-    modal
-    .add_component(
-        dpp::component()
-            .set_label("Title of the poll (required)")
-            .set_id("title")
-            .set_type(dpp::cot_text)
-            .set_required(true)
-            .set_placeholder("Best food worldwide?")
-            .set_min_length(1)
-            .set_max_length(60)
-            .set_text_style(dpp::text_short)
-    ).add_row().add_component(
-        dpp::component()
-            .set_label("Describe your question (optional)")
-            .set_id("desc")
-            .set_type(dpp::cot_text)
-            .set_placeholder("Bananas are way cooler than tomatoes. Aren't they? Sure they are. Do you agree?")
-            .set_min_length(0)
-            .set_max_length(2000)
-            .set_text_style(dpp::text_paragraph)
-    ).add_row().add_component(
-        dpp::component()
-            .set_label("Emojis to add as reaction (optional)")
-            .set_id("emojis")
-            .set_type(dpp::cot_text)
-            .set_placeholder("👍;👎;... (blank for 👍;👎)")
-            .set_min_length(0)
-            .set_max_length(60)
-            .set_text_style(dpp::text_short)
-    ).add_row().add_component(
-        dpp::component()
-            .set_label("Image link (optional)")
-            .set_id("imglink")
-            .set_type(dpp::cot_text)
-            .set_placeholder("https://myimage.notarealurl/image.png (blank for \"?\")")
-            .set_min_length(0)
-            .set_max_length(120)
-            .set_text_style(dpp::text_short)
-    ).add_row().add_component(
-        dpp::component()
-            .set_label("Color (optional)")
-            .set_id("color")
-            .set_type(dpp::cot_text)
-            .set_placeholder("(blank for user color) red, green, ..., black, default, 0xHEX or DECIMAL")
-            .set_min_length(0)
-            .set_max_length(20)
-            .set_text_style(dpp::text_short)
-    );
+    auto modal = modal_generate("poll", "create", "Create a poll");
+
+    modal_add_component(modal, "Title of the poll", "title", "Best food worldwide?", dpp::text_style_type::text_short, true, 1, 60);
+    modal_add_component(modal, "Describe your question", "desc", "Bananas are way cooler than tomatoes. Aren't they? Sure they are. Do you agree?", dpp::text_style_type::text_paragraph, false, 0, 2000);
+    modal_add_component(modal, "Emojis to add as reaction", "emojis", "👍;👎;... (blank results 👍;👎)", dpp::text_style_type::text_short, false, 0, 100);
+    modal_add_component(modal, "Image link", "imglink", "https://myimage.notarealurl/image.png (blank for \"?\")", dpp::text_style_type::text_short, false, 0, 150);
+    modal_add_component(modal, "Color", "color", "(blank for user color) red, green, ..., black, 0xHEX or DECIMAL", dpp::text_style_type::text_short, false, 0, 20);
+
     ev.dialog(modal, error_autoprint);
     return true;
 }
@@ -2746,14 +2907,11 @@ bool run_ping(const dpp::interaction_create_t& ev)
         return true;
     }
 
-    dpp::message replying;
-    replying.id = ev.command.id;
-    replying.channel_id = ev.command.channel_id;
-    replying.set_type(dpp::message_type::mt_application_command);
-    if (!guil->commands_public) replying.set_flags(dpp::m_ephemeral);
-    replying.content = "Current REST ping is: `" + std::to_string(static_cast<int>(ev.from->creator->rest_ping * 1000.0)) + " ms`";
+    dpp::message msg;
+    if (!guil->commands_public) msg.set_flags(dpp::m_ephemeral);
+    msg.set_content("Current REST ping is: `" + std::to_string(static_cast<int>(ev.from->creator->rest_ping * 1000.0)) + " ms`");
 
-    ev.reply(dpp::interaction_response_type::ir_channel_message_with_source, replying);
+    ev.reply(dpp::interaction_response_type::ir_channel_message_with_source, msg);
     
     return true;
 }
@@ -2809,38 +2967,19 @@ bool run_copy(const dpp::interaction_create_t& ev, const dpp::command_interactio
 bool run_paste(const dpp::interaction_create_t& ev, const dpp::command_interaction& cmd)
 {
     const auto you = tf_user_info[ev.command.usr.id];
-    if (!you) {
-        ev.reply(make_ephemeral_message("Something went wrong! You do not exist?! Please report error! I'm so sorry."));
-        return true;
-    }
+    if (!you) { ev.reply(make_ephemeral_message("Something went wrong! You do not exist?! Please report error! I'm so sorry.")); return true; }
     const auto guil = tf_guild_info[ev.command.guild_id];
-    if (!guil) {
-        ev.reply(make_ephemeral_message("Something went wrong! Guild do not exist?! Please report error! I'm so sorry."));
-        return true;
-    }
+    if (!guil) { ev.reply(make_ephemeral_message("Something went wrong! Guild do not exist?! Please report error! I'm so sorry.")); return true; }
 
-    if (!you->clipboard.has_data()) {
-        ev.reply(make_ephemeral_message("You haven't copy a message yet! Try right click on one and Apps -> Copy to clipboard!"));
-        return true;
-    }
+    if (!you->clipboard.has_data()) { ev.reply(make_ephemeral_message("You haven't copy a message yet! Try right click on one and Apps -> Copy to clipboard!")); return true; }
 
-    if (you->clipboard.guild_id != ev.command.guild_id && !guil->allow_external_paste)
-    {
+    if (you->clipboard.guild_id != ev.command.guild_id && !guil->allow_external_paste) {
         ev.reply(make_ephemeral_message("This server doesn't allow paste from external sources."));
         return true;
     }
 
-    dpp::interaction_modal_response modal("paste-comment", "Paste options");
-    modal.add_component(
-        dpp::component()
-            .set_label("Comment? (optional)")
-            .set_id("comment")
-            .set_type(dpp::cot_text)
-            .set_placeholder("KEKW look at that dude doing poggers")
-            .set_min_length(0)
-            .set_max_length(280)
-            .set_text_style(dpp::text_paragraph)
-    );
+    auto modal = modal_generate("paste", "post", "Paste options");
+    modal_add_component(modal, "Your take on this message", "comment", "KEKW look at that dude doing poggers", dpp::text_style_type::text_paragraph, false, 0, 280);
     ev.dialog(modal, error_autoprint);
     return true;
 }
@@ -2853,33 +2992,76 @@ bool run_showinfo(const dpp::interaction_create_t& ev)
         return true;
     }
 
-    dpp::message msg(ev.command.channel_id, "**About user**");
-    msg.add_component(
-        dpp::component()
-            .add_component(
-                dpp::component()
-                .set_label("Get user information")
-                .set_id("showinfo-menu")
-                .set_type(dpp::cot_selectmenu)
-                .add_select_option(dpp::select_option("Local points",   "showinfo-localpt",     "The user points in this guild"))
-                .add_select_option(dpp::select_option("Global points",  "showinfo-globalpt",    "The global points (ranking)"))
-                .add_select_option(dpp::select_option("Statistics",     "showinfo-statistics",  "User stats, like messages sent, commands, attachments..."))
-            )
-    );
-    msg.add_component(
-        dpp::component()
-            .add_component(
-                dpp::component()
-                .set_label(std::to_string(ev.command.usr.id))
-                .set_id("showinfo-userid_reg")
-                .set_type(dpp::cot_button)
-                .set_style(dpp::cos_secondary)
-                .set_disabled(true)
-            )
-    );
+    dpp::snowflake usrid = ev.command.usr.id;
+    bool was_right_click = false;
 
-    if (!guil->commands_public) msg.set_flags(dpp::m_ephemeral);
-    ev.reply(msg, error_autoprint);
+    if (std::holds_alternative<dpp::command_interaction>(ev.command.data))
+    {
+        const dpp::command_interaction& inter = std::get<dpp::command_interaction>(ev.command.data);
+        if (inter.target_id != 0) {
+            usrid = inter.target_id;
+            was_right_click = true;
+        }
+    }
+
+    dpp::user currusr;
+    bool replied_already = false;
+
+    const auto do_showinfo_intern = [guil](const dpp::interaction_create_t& mev, dpp::user musr, bool replied_al){
+        transl_button_event wrk;
+
+        wrk.push_or_replace(select_row()
+            .push_item(item<std::string>("Local points",   "localpt",     "The user points in this guild"                              ).set_emoji("📊"))
+            .push_item(item<std::string>("Global points",  "globalpt",    "The global points (ranking)"                                ).set_emoji("🌐"))
+            .push_item(item<std::string>("Statistics",     "statistics",  "User stats, like messages sent, commands, attachments..."   ).set_emoji("🗂️"))
+            .set_group_name("showinfo")
+        );
+
+        wrk.push_or_replace(button_row()
+            .push_item(item<button_props>("You've selected: " + musr.format_username(), "select", { dpp::cos_primary, true }).set_custom(musr.id))
+            .set_group_name("showinfotarget")
+        );
+
+        dpp::message msg = wrk.generate_message(!guil->commands_public);
+        msg.channel_id = mev.command.channel_id;
+        msg.set_content("**__About user__**");
+
+        if (replied_al) mev.edit_response(msg);
+        else mev.reply(msg);
+    };
+
+    {
+        dpp::cache<dpp::user>* cach = dpp::get_user_cache();
+        std::shared_lock<std::shared_mutex> lu(cach->get_mutex());
+        const auto& vec = cach->get_container();
+
+        auto it = std::find_if(vec.begin(), vec.end(), [&](const std::pair<dpp::snowflake, dpp::user*>& u){ return u.first == usrid; });
+        if (it == vec.end()) {
+            ev.reply(dpp::message().set_content("This user is not on cache. Trying to load it... (please wait some seconds, this message will update soon, hopefully)").set_flags(guil->commands_public ? 0 : dpp::m_ephemeral));
+            if (was_right_click) {
+                ev.from->creator->user_get(usrid, [ev, do_showinfo_intern](const dpp::confirmation_callback_t& conf){
+                    if (conf.is_error()) {
+                        ev.reply("Sadly I couldn't get more information about this user. Try again later.");
+                        return;
+                    }
+
+                    const dpp::user_identified& ui = std::get<dpp::user_identified>(conf.value);
+
+                    // manually add to cache...?
+                    if (ui.id != 0 && !dpp::get_user_cache()->find(ui.id)) {                        
+                        dpp::get_user_cache()->store(new dpp::user(ui));
+                    }
+
+                    do_showinfo_intern(ev, ui, true);
+                });
+            }
+            return true;
+        }
+
+        currusr = *it->second;
+    }
+
+    do_showinfo_intern(ev, currusr, false);
     return true;
 }
 
