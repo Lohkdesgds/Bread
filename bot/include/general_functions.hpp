@@ -173,6 +173,7 @@ public:
 
     // replace old message? Do something with the message before sending? (first bool == silent aka ephemeral?)
     bool reply(const bool, const bool = true, std::function<void(dpp::message&)> = {}) const;
+    bool edit_response(std::function<void(dpp::message&)> = {}) const;
 
     // generate bool -> ephemeral?
     dpp::message generate_message(const bool) const;

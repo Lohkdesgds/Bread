@@ -464,6 +464,25 @@ bool transl_button_event::reply(const bool silent, const bool replac, std::funct
     return true;
 }
 
+bool transl_button_event::edit_response(std::function<void(dpp::message&)> dosmth) const
+{
+    dpp::message msg = generate_message(false);
+    if (dosmth) dosmth(msg);
+
+    const auto autoerr = [](const dpp::confirmation_callback_t& e){
+        if (e.is_error()) {
+            Lunaris::cout << Lunaris::console::color::DARK_PURPLE << e.get_error().message;
+            Lunaris::cout << Lunaris::console::color::DARK_AQUA << e.http_info.body;
+        }
+    };
+
+    if (ifbtnclick) ifbtnclick->edit_response(msg, autoerr);
+    if (ifslcclick) ifslcclick->edit_response(msg, autoerr);
+    if (iffrmclick) iffrmclick->edit_response(msg, autoerr);
+
+    return true;
+}
+
 dpp::message transl_button_event::generate_message(const bool silent) const
 {
     dpp::message msg;
