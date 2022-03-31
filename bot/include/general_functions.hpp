@@ -155,6 +155,7 @@ public:
     bool find_select_do(const std::string&, const std::string&, std::function<void(item<std::string>&)>);
 
     const std::vector<std::pair<std::string, std::string>>& get_modal_items() const;
+    std::string find_modal_get(const std::string&) const;
 
     // find this string on names. Function gets left offset and right offset (right to left) and must return true to remove
     bool remove_group_named(const std::string&, std::function<bool(size_t, size_t)> = [](auto,auto){return true;});

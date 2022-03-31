@@ -9,6 +9,9 @@ const std::string slash_path = "./bot/slashes.json";
 const std::string file_alt_way = "_alt";
 const auto default_intents = dpp::i_default_intents | dpp::i_message_content;
 
+const dpp::snowflake guild_backup_id    = 847342829285933057; // Lunaris DEV
+const dpp::snowflake channel_logging_jl = 891424429857468517; // log join and leave channel
+
 const auto factory_default_time = std::chrono::seconds(120); // 2 min in memory
 
 namespace user_props {
@@ -18,9 +21,10 @@ namespace user_props {
 namespace guild_props {
     constexpr size_t guild_path_off = 1; // needed_paths[1]
     constexpr unsigned long long time_to_earn_points_diffuser_ms = 45 * 1000;
-    constexpr size_t guild_log_each_max_size = 256;
 
     constexpr size_t max_onjoin_roles_len = 20;
+
+    constexpr size_t max_leveling_roles_len = 100;
     
     constexpr size_t max_role_groups = 8;
     constexpr size_t max_role_group_each = 20;

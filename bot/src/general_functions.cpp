@@ -367,6 +367,13 @@ const std::vector<std::pair<std::string, std::string>>& transl_button_event::get
     return modal_response;
 }
 
+std::string transl_button_event::find_modal_get(const std::string& key) const
+{
+    const auto it = std::find_if(modal_response.begin(), modal_response.end(), [&](const std::pair<std::string, std::string>& s){ return s.first == key; });
+    if (it != modal_response.end()) return it->second;
+    return {};
+}
+
 bool transl_button_event::remove_group_named(const std::string& srch, std::function<bool(size_t, size_t)> frule)
 {
     if (!frule) return false;

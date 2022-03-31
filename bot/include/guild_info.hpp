@@ -44,6 +44,8 @@ struct guild_info {
         void from_json(const nlohmann::json&);
         category(const nlohmann::json&);
         category() = default;
+
+        std::string render_string_block() const;
     };
 
     std::vector<category> roles_available; // /roles
@@ -52,7 +54,8 @@ struct guild_info {
     bool block_levelup_user_event = false; 
     mull last_user_earn_points = 0; // time last user earned.
     mull fallback_levelup_message_channel = 0;
-    bool guild_was_deleted = false;
+    bool guild_was_deleted = true; // by default assume ban or inexistent
+    bool guild_on_outage = false; // unavailable
     bool allow_external_paste = true;
     bool commands_public = false; // slash commands flag not 64?
     mutable std::shared_mutex mu;

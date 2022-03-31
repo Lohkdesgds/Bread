@@ -26,7 +26,7 @@ add_subdirectory(libs/DPP)
     # your others files...
 #)
 
-file(GLOB_RECURSE source_list "bot/src/*.cpp" "bot/include/*.hpp")
+file(GLOB_RECURSE source_list "bot/src/*.cpp" "bot/src/*/*.cpp" "bot/include/*.hpp")
 add_executable(${PROJECT_NAME} ${source_list})
 #file(GLOB ${PROJECT_NAME} CONFIGURE_DEPENDS "*.h" "*.cpp")
 
