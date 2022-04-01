@@ -51,9 +51,9 @@ int main()
     cout << console::color::GREEN << "[MAIN] Configuration loaded properly. Starting bot...";
 
     // prepare hard stuff
-    auto presence_update_timer = bot->start_timer([&]{ g_tick_presence(config, *bot);}, 60);
-    auto tusers_timer = bot->start_timer([&]{ tf_user_info.free_freeable(); }, 60, [&]{ tf_user_info.free_all(); });
-    auto tguild_timer = bot->start_timer([&]{ tf_guild_info.free_freeable(); }, 60, [&]{ tf_guild_info.free_all(); });
+    auto presence_update_timer = bot->start_timer([&](auto){ g_tick_presence(config, *bot);}, 60);
+    auto tusers_timer = bot->start_timer([&](auto){ tf_user_info.free_freeable(); }, 60, [&](auto){ tf_user_info.free_all(); });
+    auto tguild_timer = bot->start_timer([&](auto){ tf_guild_info.free_freeable(); }, 60, [&](auto){ tf_guild_info.free_all(); });
 
     cout << console::color::AQUA << "[MAIN] Any help do 'help'";
 
