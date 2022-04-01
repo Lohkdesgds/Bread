@@ -112,6 +112,7 @@ void g_on_message(const dpp::message_create_t& ev)
     using mull = unsigned long long;
 
     if (ev.msg.author.is_bot()) return;
+    if (ev.msg.author.flags & dpp::gm_pending) return;
 
     force_const<user_info> youu = tf_user_info[ev.msg.author.id];
     if (!youu) return; // discard
@@ -132,6 +133,32 @@ void g_on_message(const dpp::message_create_t& ev)
     auto& guil = guill.unsafe();
 
     if (get_time_ms() <= guil.last_user_earn_points) return;
+
+    // patch user autorole on join if valid
+    {
+        const auto& vecref = guil.roles_when_join;
+
+        if (vecref.size() > 0) {
+            dpp::guild_member member;
+            member.guild_id = ev.msg.guild_id;
+            member.user_id 	= ev.msg.author.id;
+            member.roles 	= ev.msg.member.roles;
+
+            bool had_update = false;
+
+            for (const auto& i : vecref) {
+                if (std::find(member.roles.begin(), member.roles.end(), i) == member.roles.end()) {
+                    member.roles.push_back(i);
+                    had_update = true;
+                }
+            }
+
+            if (had_update) {
+                ev.from->creator->guild_edit_member(member, error_autoprint);
+            }
+        }
+    }
+
     if (get_time_ms() <= you.last_points_earned) return;
     
 

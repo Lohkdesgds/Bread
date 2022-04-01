@@ -1,7 +1,6 @@
 #include <specific_functions.hpp>
 // SHOULD BE SAFE (MUTEXES)
 
-
 void g_on_button_click(const dpp::button_click_t& ev)
 {
     transl_button_event wrk(ev);

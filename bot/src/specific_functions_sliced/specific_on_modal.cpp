@@ -523,9 +523,7 @@ void g_on_modal(const dpp::form_submit_t& ev)
                 emb.set_footer(emb_footer);
 
                 if (!paste_content.empty()){
-                    emb.description += "`Commented:`\n```\n";
-                    for (const auto& i : paste_content.substr(0, 280)) { if (i != '`') emb.description += i; }
-                    emb.description += "```\n";
+                    emb.description += "`Commented:`\n```\n" + dpp::utility::markdown_escape(paste_content.substr(0, 280), true) + "```\n";
                 }
 
                 if (!sourcemsg.content.empty()) {
