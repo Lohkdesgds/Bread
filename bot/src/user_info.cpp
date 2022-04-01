@@ -80,6 +80,24 @@ void user_info::from_json(const nlohmann::json& j)
     find_json_array_autoabort<std::pair<mull,mull>>(j, "points_per_guild", points_per_guild);
 }
 
+unsigned long long user_info::get_points_on_guild(const unsigned long long& i) const
+{
+    if (auto it = points_per_guild.find(i); it != points_per_guild.end()) return it->second;
+    return 0;
+}
+
+unsigned long long user_info::get_messages_on_guild(const unsigned long long& i) const
+{
+    if (auto it = messages_sent_per_guild.find(i); it != messages_sent_per_guild.end()) return it->second;
+    return 0;
+}
+
+unsigned long long user_info::get_attachments_on_guild(const unsigned long long& i) const
+{
+    if (auto it = attachments_sent_per_guild.find(i); it != attachments_sent_per_guild.end()) return it->second;
+    return 0;
+}
+
 user_info::user_info(const dpp::snowflake& id)
     : __user_id(id)
 {

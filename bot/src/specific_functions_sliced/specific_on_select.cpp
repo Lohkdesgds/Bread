@@ -1,17 +1,24 @@
 #include <specific_functions.hpp>
+// SHOULD BE SAFE (MUTEXES)
 
+// Detected all stuff readonly for guild!
 void g_on_select(const dpp::select_click_t& ev)
 {
     transl_button_event wrk(ev);
 
-    const auto guil = tf_guild_info[ev.command.guild_id];
+    force_const<guild_info> guil = tf_guild_info[ev.command.guild_id];
     if (!guil) { ev.reply(make_ephemeral_message("Something went wrong! Guild do not exist?! Please report error! I'm so sorry.")); return; }
+
+    std::shared_lock<std::shared_mutex> guilmtx(guil.unsafe().muu); // as guild is readonly
 
     if (!wrk.has_valid_ref()) { ev.reply(make_ephemeral_message("Something went wrong! Internal reference got LOST!")); return; }
 
     auto& trigg = wrk.get_trigger();
 
-    if (trigg.group_name == "TMPgetrolegroup") {
+    if (trigg.group_name == "TMPgetrolegroup") { // switch role in list of getrole
+
+        //std::shared_lock<Lunaris::shared_recursive_mutex> guilmtx(guil->mu);
+
         const std::string groupnam = (std::holds_alternative<std::string>(trigg.value) ? std::get<std::string>(trigg.value) : "");
         const dpp::snowflake roleid = dpp::from_string<dpp::snowflake>(trigg.item_name);
 
@@ -39,7 +46,6 @@ void g_on_select(const dpp::select_click_t& ev)
                     auto it2 = std::find(member.roles.begin(), member.roles.end(), inn.id);
                     if (it2 != member.roles.end() && *it2 != roleid) {
                         member.roles.erase(it2);
-                        //Lunaris::cout << "REMOVEID=" << inn.id ;
                     }
                 }
             }
@@ -82,6 +88,8 @@ void g_on_select(const dpp::select_click_t& ev)
     }
     if (trigg.group_name == "getrolegroup") { // user selecting role group
         
+        //std::shared_lock<Lunaris::shared_recursive_mutex> guilmtx(guil->mu);
+
         wrk.remove_group_named_all("TMP");
         
         auto it = std::find_if(guil->roles_available.begin(), guil->roles_available.end(), [&](const guild_info::category& c){ return c.name == trigg.item_name; });
@@ -112,6 +120,8 @@ void g_on_select(const dpp::select_click_t& ev)
     }
     if (trigg.group_name == "TMProlesconfgroup") // part of guildconf, selecting roles omg
     {
+        //std::shared_lock<Lunaris::shared_recursive_mutex> guilmtx(guil->mu);
+
         std::string selected_group_name = trigg.item_name;
         size_t selected_group = 0;
 
@@ -160,11 +170,9 @@ void g_on_select(const dpp::select_click_t& ev)
     {
         if (trigg.item_name == "export") // by default embeds/files won't stay
         {
-            //clear_tmp();
-            wrk.remove_group_named_all("TMP");
+            //std::shared_lock<Lunaris::shared_recursive_mutex> guilmtx(guil->mu);
 
-            const auto guil = tf_guild_info[ev.command.guild_id];
-            if (!guil) { ev.reply(make_ephemeral_message("Something went wrong! Guild do not exist?! Please report error! I'm so sorry.")); return; }
+            wrk.remove_group_named_all("TMP");
 
             wrk.set_content("**Export config selected**");
             wrk.reply(!guil->commands_public, true, [&](dpp::message& msg){ msg.add_file("guild_data.json", guil->to_json().dump(2)); });
@@ -172,10 +180,8 @@ void g_on_select(const dpp::select_click_t& ev)
         }
         if (trigg.item_name == "comm")
         {
-            const auto guil = tf_guild_info[ev.command.guild_id];
-            if (!guil) { ev.reply(make_ephemeral_message("Something went wrong! Guild do not exist?! Please report error! I'm so sorry.")); return; }
+            //std::shared_lock<Lunaris::shared_recursive_mutex> guilmtx(guil->mu);
 
-            //clear_tmp();
             wrk.remove_group_named_all("TMP");
 
             wrk.push_or_replace(button_row()
@@ -190,7 +196,8 @@ void g_on_select(const dpp::select_click_t& ev)
         }
         if (trigg.item_name == "points")
         {
-            //clear_tmp();
+            //std::shared_lock<Lunaris::shared_recursive_mutex> guilmtx(guil->mu);
+
             wrk.remove_group_named_all("TMP");
             
             wrk.push_or_replace(button_row()
@@ -206,7 +213,8 @@ void g_on_select(const dpp::select_click_t& ev)
         }
         if (trigg.item_name == "roles")
         {
-            //clear_tmp();
+            //std::shared_lock<Lunaris::shared_recursive_mutex> guilmtx(guil->mu);
+
             wrk.remove_group_named_all("TMP");
 
             std::string selected_group_name;
@@ -252,8 +260,37 @@ void g_on_select(const dpp::select_click_t& ev)
         }
         if (trigg.item_name == "aroles") // auto roles
         {
-            //clear_tmp();
+            //std::shared_lock<Lunaris::shared_recursive_mutex> guilmtx(guil->mu);
+
             wrk.remove_group_named_all("TMP");
+
+            std::string content;
+            content = 
+                "**__Automatic roles setup__**\n"
+                "*Current role usage: " + std::to_string(guil->roles_when_join.size()) + " of " + std::to_string(guild_props::max_onjoin_roles_len) + "*\n";
+
+            {
+                content += "```cs\n";
+                const auto& list = guil->roles_when_join;
+                if (list.size() > 0) {
+                    dpp::cache<dpp::role>* cach = dpp::get_role_cache();
+                    std::shared_lock<std::shared_mutex> lu(cach->get_mutex());
+                    const auto& rols = cach->get_container();
+
+                    for(const auto& it : list) {
+                        content += " " + std::to_string(it) + ": #";
+                        auto found = std::find_if(rols.begin(), rols.end(), [&](const std::pair<dpp::snowflake, dpp::role*>& s){ return s.first == it;});
+                        if (found != rols.end()) content += found->second->name;
+                        content += "\n";
+                    }
+                }
+                else {
+                    content += " <empty list>\n";
+                }
+                content += "```";
+            }
+
+            wrk.set_content(content);
 
             const bool can_add = guil->roles_when_join.size() < guild_props::max_onjoin_roles_len;
             const bool can_del = guil->roles_when_join.size() > 0;
@@ -264,14 +301,42 @@ void g_on_select(const dpp::select_click_t& ev)
                 .set_group_name("TMParolesconf"), 0
             );
 
-            wrk.set_content("**__Automatic on-join role setup__**");
             wrk.reply(!guil->commands_public);
             return;
         }
         if (trigg.item_name == "lroles") // level roles
         {
-            //clear_tmp();
+            //std::shared_lock<Lunaris::shared_recursive_mutex> guilmtx(guil->mu);
+
             wrk.remove_group_named_all("TMP");
+
+            std::string content;
+            content = 
+                "**__Leveling role setup__**\n"
+                "*Current role usage: " + std::to_string(guil->role_per_level.size()) + " of " + std::to_string(guild_props::max_leveling_roles_len) + "*\n";
+
+            {
+                content += "```cs\n";
+                const auto& list = guil->role_per_level;
+                if (list.size() > 0) {
+                    dpp::cache<dpp::role>* cach = dpp::get_role_cache();
+                    std::shared_lock<std::shared_mutex> lu(cach->get_mutex());
+                    const auto& rols = cach->get_container();
+
+                    for(const auto& it : list) {
+                        content += " Level " + std::to_string(it.level) + " -> " + std::to_string(it.id) + ": #";
+                        auto found = std::find_if(rols.begin(), rols.end(), [&](const std::pair<dpp::snowflake, dpp::role*>& s){ return s.first == it.id;});
+                        if (found != rols.end()) content += found->second->name;
+                        content += "\n";
+                    }
+                }
+                else {
+                    content += " <empty list>\n";
+                }
+                content += "```";
+            }
+
+            wrk.set_content(content);
             
             const bool can_add = guil->role_per_level.size() < guild_props::max_leveling_roles_len;
             const bool can_del = guil->role_per_level.size() > 0;
@@ -282,12 +347,12 @@ void g_on_select(const dpp::select_click_t& ev)
                 .set_group_name("TMPlrolesconf"), 0
             );
 
-            wrk.set_content("**__Leveling role setup__**");
             wrk.reply(!guil->commands_public);
             return;
         }
     }
     if (trigg.group_name == "showinfo") {
+        //std::shared_lock<Lunaris::shared_recursive_mutex> guilmtx(guil->mu);
 
         // ==================== SHARED STUFF GOING ON ==================== //
         dpp::snowflake usrid = 0;
@@ -315,11 +380,10 @@ void g_on_select(const dpp::select_click_t& ev)
             currusr = *it->second;
         }
     
-        const auto you = tf_user_info[currusr.id];
-        if (!you) {
-            ev.reply(make_ephemeral_message("Something went wrong! You do not exist?! Please report error! I'm so sorry."));
-            return;
-        }
+        force_const<user_info> you = tf_user_info[currusr.id];
+        if (!you) { ev.reply(make_ephemeral_message("Something went wrong! You do not exist?! Please report error! I'm so sorry.")); return; }
+
+        std::shared_lock<std::shared_mutex> lu(you.unsafe().muu);
 
         dpp::embed targetemb;
         targetemb.set_author(dpp::embed_author{
@@ -336,11 +400,11 @@ void g_on_select(const dpp::select_click_t& ev)
 
         if (trigg.item_name == "localpt") {
             unsigned long long local_level = 0, local_nextlevel = 0;
-            calc_user_level(you->points_per_guild[ev.command.guild_id], local_level, local_nextlevel);
+            calc_user_level(you->get_points_on_guild(ev.command.guild_id), local_level, local_nextlevel);
 
             targetemb.set_title("**__Local points__**");
             targetemb.add_field("Current level", (u8"✨ " + std::to_string(local_level)), true );
-            targetemb.add_field("Points", (u8"🧬 " + std::to_string(you->points_per_guild[ev.command.guild_id])), true );
+            targetemb.add_field("Points", (u8"🧬 " + std::to_string(you->get_points_on_guild(ev.command.guild_id))), true );
             targetemb.add_field("Next level in", (u8"📈 " + std::to_string(local_nextlevel)), true );
 
             wrk.reply(!guil->commands_public, true, [&](dpp::message& msg) {
@@ -366,11 +430,11 @@ void g_on_select(const dpp::select_click_t& ev)
         if (trigg.item_name == "statistics") {
             targetemb.set_title("**__Statistics__**");
             targetemb.add_field("Total messages", (u8"📚 " + std::to_string(you->messages_sent)), true);
-            targetemb.add_field("Messages here", (u8"📓 " + std::to_string(you->messages_sent_per_guild[ev.command.guild_id])), true);
-            targetemb.add_field("% messages here", (u8"🔖 " + std::to_string(static_cast<int>(((100 * you->messages_sent_per_guild[ev.command.guild_id])) / (you->messages_sent == 0 ? 1 : you->messages_sent))) + "%"), true);
+            targetemb.add_field("Messages here", (u8"📓 " + std::to_string(you->get_messages_on_guild(ev.command.guild_id))), true);
+            targetemb.add_field("% messages here", (u8"🔖 " + std::to_string(static_cast<int>(((100 * you->get_messages_on_guild(ev.command.guild_id))) / (you->messages_sent == 0 ? 1 : you->messages_sent))) + "%"), true);
             targetemb.add_field("Total files", (u8"🗂️ " + std::to_string(you->attachments_sent)), true);
-            targetemb.add_field("Files here", (u8"📁 " + std::to_string(you->attachments_sent_per_guild[ev.command.guild_id])), true);
-            targetemb.add_field("% files here", (u8"⚙️ " + std::to_string(static_cast<int>((100 * you->attachments_sent_per_guild[ev.command.guild_id]) / (you->attachments_sent == 0 ? 1 : you->attachments_sent))) + "%"), true);
+            targetemb.add_field("Files here", (u8"📁 " + std::to_string(you->get_attachments_on_guild(ev.command.guild_id))), true);
+            targetemb.add_field("% files here", (u8"⚙️ " + std::to_string(static_cast<int>((100 * you->get_attachments_on_guild(ev.command.guild_id)) / (you->attachments_sent == 0 ? 1 : you->attachments_sent))) + "%"), true);
             targetemb.add_field("Commands triggered", (u8"⚡ " + std::to_string(you->commands_used)), true);
 
             wrk.reply(!guil->commands_public, true, [&](dpp::message& msg) {
@@ -385,448 +449,4 @@ void g_on_select(const dpp::select_click_t& ev)
 
     ev.reply(make_ephemeral_message("Something went wrong! Track: on_select > ?"));
     return;
-
-
-//    if (ev.custom_id == "showinfo-menu") {
-//        const auto& selected = ev.values[0];
-//
-//        if (selected == "showinfo-localpt"){ // Show buttons "select user", "set value/`$current_value`"
-//            dpp::message msg(ev.command.channel_id, "**Local points of user**");
-//            
-//            const auto sstr = get_label(ev.command.msg.components, "showinfo-userid_reg");
-//            const dpp::snowflake usrid = dpp::from_string<dpp::snowflake>(sstr);
-//
-//            if (usrid == 0) {
-//                ev.reply(make_ephemeral_message("Something went wrong! User not found?"));
-//                return;
-//            }
-//            
-//            dpp::user currusr;
-//            {
-//                dpp::cache<dpp::user>* cach = dpp::get_user_cache();
-//                std::shared_lock<std::shared_mutex> lu(cach->get_mutex());
-//                const auto& vec = cach->get_container();
-//
-//                auto it = std::find_if(vec.begin(), vec.end(), [&](const std::pair<dpp::snowflake, dpp::user*>& u){ return u.first == usrid; });
-//                if (it == vec.end()) {
-//                    ev.reply(make_ephemeral_message("Something went wrong! Cannot find user somehow. Cache is not up to date?"));
-//                    return;
-//                }
-//
-//                currusr = *it->second;
-//            }
-//        
-//            const auto you = tf_user_info[currusr.id];
-//            if (!you) {
-//                ev.reply(make_ephemeral_message("Something went wrong! You do not exist?! Please report error! I'm so sorry."));
-//                return;
-//            }
-//
-//            dpp::embed localpt;
-//            dpp::embed_author common_author{
-//                    .name = currusr.format_username(),
-//                    .url = currusr.get_avatar_url(256),
-//                    .icon_url = currusr.get_avatar_url(256)
-//                };
-//
-//            unsigned long long local_level = 0, local_nextlevel = 0;
-//
-//            calc_user_level(you->points_per_guild[ev.command.guild_id], local_level, local_nextlevel);
-//
-//            localpt.set_author(common_author);
-//            localpt.set_title("**__Local points__**");
-//            localpt.set_thumbnail(images::points_image_url);
-//            localpt.set_color((you->pref_color < 0 ? random() : you->pref_color));
-//            localpt.add_field("Current level", (u8"✨ " + std::to_string(local_level)), true );
-//            localpt.add_field("Points", (u8"🧬 " + std::to_string(you->points_per_guild[ev.command.guild_id])), true );
-//            localpt.add_field("Next level in", (u8"📈 " + std::to_string(local_nextlevel)), true );
-//
-//            msg.add_component(
-//                dpp::component()
-//                    .add_component(
-//                        dpp::component()
-//                        .set_label("Get user information")
-//                        .set_id("showinfo-menu")
-//                        .set_type(dpp::cot_selectmenu)
-//                        .add_select_option(dpp::select_option("Local points",   "showinfo-localpt",     "The user points in this guild"))
-//                        .add_select_option(dpp::select_option("Global points",  "showinfo-globalpt",    "The global points (ranking)"))
-//                        .add_select_option(dpp::select_option("Statistics",     "showinfo-statistics",  "User stats, like messages sent, commands, attachments..."))
-//                    )
-//            );
-//            msg.add_component(
-//                dpp::component()
-//                    .add_component(
-//                        dpp::component()
-//                        .set_label(std::to_string(ev.command.usr.id))
-//                        .set_id("showinfo-userid_reg")
-//                        .set_type(dpp::cot_button)
-//                        .set_style(dpp::cos_secondary)
-//                        .set_disabled(true)
-//                    )
-//            );
-//
-//            msg.embeds.push_back(localpt);
-//            msg.set_content("");
-//            msg.set_flags(64);
-//            ev.reply(dpp::ir_update_message, msg, error_autoprint);
-//            return;
-//        }
-//        else if (selected == "showinfo-globalpt"){ // Show buttons "select user", "set value/`$current_value`"
-//            dpp::message msg(ev.command.channel_id, "**Global points of user**");
-//            
-//            
-//            const auto sstr = get_label(ev.command.msg.components, "showinfo-userid_reg");
-//            const dpp::snowflake usrid = dpp::from_string<dpp::snowflake>(sstr);
-//            
-//            if (usrid == 0) {
-//                ev.reply(make_ephemeral_message("Something went wrong! User not found?"));
-//                return;
-//            }
-//            
-//            dpp::user currusr;
-//            {
-//                dpp::cache<dpp::user>* cach = dpp::get_user_cache();
-//                std::shared_lock<std::shared_mutex> lu(cach->get_mutex());
-//                const auto& vec = cach->get_container();
-//
-//                auto it = std::find_if(vec.begin(), vec.end(), [&](const std::pair<dpp::snowflake, dpp::user*>& u){ return u.first == usrid; });
-//                if (it == vec.end()) {
-//                    ev.reply(make_ephemeral_message("Something went wrong! Cannot find user somehow. Cache is not up to date?"));
-//                    return;
-//                }
-//
-//                currusr = *it->second;
-//            }
-//        
-//            const auto you = tf_user_info[currusr.id];
-//            if (!you) {
-//                ev.reply(make_ephemeral_message("Something went wrong! You do not exist?! Please report error! I'm so sorry."));
-//                return;
-//            }
-//
-//            dpp::embed globalpt;
-//            dpp::embed_author common_author{
-//                    .name = currusr.format_username(),
-//                    .url = currusr.get_avatar_url(256),
-//                    .icon_url = currusr.get_avatar_url(256)
-//                };
-//
-//            unsigned long long global_level = 0, global_nextlevel = 0;
-//
-//            calc_user_level(you->points, global_level, global_nextlevel);
-//
-//            globalpt.set_author(common_author);
-//            globalpt.set_title("**__Global points__**");
-//            globalpt.set_thumbnail(images::points_image_url);
-//            globalpt.set_color((you->pref_color < 0 ? random() : you->pref_color));
-//            globalpt.add_field("Current level", (u8"✨ " + std::to_string(global_level)), true );
-//            globalpt.add_field("Points", (u8"🧬 " + std::to_string(you->points)), true );
-//            globalpt.add_field("Next level in", (u8"📈 " + std::to_string(global_nextlevel)), true );
-//
-//            msg.add_component(
-//                dpp::component()
-//                    .add_component(
-//                        dpp::component()
-//                        .set_label("Get user information")
-//                        .set_id("showinfo-menu")
-//                        .set_type(dpp::cot_selectmenu)
-//                        .add_select_option(dpp::select_option("Local points",   "showinfo-localpt",     "The user points in this guild"))
-//                        .add_select_option(dpp::select_option("Global points",  "showinfo-globalpt",    "The global points (ranking)"))
-//                        .add_select_option(dpp::select_option("Statistics",     "showinfo-statistics",  "User stats, like messages sent, commands, attachments..."))
-//                    )
-//            );
-//            msg.add_component(
-//                dpp::component()
-//                    .add_component(
-//                        dpp::component()
-//                        .set_label(std::to_string(ev.command.usr.id))
-//                        .set_id("showinfo-userid_reg")
-//                        .set_type(dpp::cot_button)
-//                        .set_style(dpp::cos_secondary)
-//                        .set_disabled(true)
-//                    )
-//            );
-//
-//            msg.embeds.push_back(globalpt);
-//            msg.set_content("");
-//            msg.set_flags(64);
-//            ev.reply(dpp::ir_update_message, msg, error_autoprint);
-//            return;
-//        }
-//        else if (selected == "showinfo-statistics"){ // Show buttons "select user", "set value/`$current_value`"
-//            dpp::message msg(ev.command.channel_id, "**Global points of user**");
-//                        
-//            const auto sstr = get_label(ev.command.msg.components, "showinfo-userid_reg");
-//            const dpp::snowflake usrid = dpp::from_string<dpp::snowflake>(sstr);
-//            
-//            if (usrid == 0) {
-//                ev.reply(make_ephemeral_message("Something went wrong! User not found?"));
-//                return;
-//            }
-//            
-//            dpp::user currusr;
-//            {
-//                dpp::cache<dpp::user>* cach = dpp::get_user_cache();
-//                std::shared_lock<std::shared_mutex> lu(cach->get_mutex());
-//                const auto& vec = cach->get_container();
-//
-//                auto it = std::find_if(vec.begin(), vec.end(), [&](const std::pair<dpp::snowflake, dpp::user*>& u){ return u.first == usrid; });
-//                if (it == vec.end()) {
-//                    ev.reply(make_ephemeral_message("Something went wrong! Cannot find user somehow. Cache is not up to date?"));
-//                    return;
-//                }
-//
-//                currusr = *it->second;
-//            }
-//        
-//            const auto you = tf_user_info[currusr.id];
-//            if (!you) {
-//                ev.reply(make_ephemeral_message("Something went wrong! You do not exist?! Please report error! I'm so sorry."));
-//                return;
-//            }
-//
-//            dpp::embed statistics;
-//            dpp::embed_author common_author{
-//                    .name = currusr.format_username(),
-//                    .url = currusr.get_avatar_url(256),
-//                    .icon_url = currusr.get_avatar_url(256)
-//                };
-//
-//
-//            statistics.set_author(common_author);
-//            statistics.set_title("**__Statistics__**");
-//            statistics.set_thumbnail(images::statistics_image_url);
-//            statistics.set_color((you->pref_color < 0 ? random() : you->pref_color));
-//            statistics.add_field("Total messages", (u8"📚 " + std::to_string(you->messages_sent)), true);
-//            statistics.add_field("Messages here", (u8"📓 " + std::to_string(you->messages_sent_per_guild[ev.command.guild_id])), true);
-//            statistics.add_field("% messages here", (u8"🔖 " + std::to_string(static_cast<int>(((100 * you->messages_sent_per_guild[ev.command.guild_id])) / (you->messages_sent == 0 ? 1 : you->messages_sent))) + "%"), true);
-//            statistics.add_field("Total files", (u8"🗂️ " + std::to_string(you->attachments_sent)), true);
-//            statistics.add_field("Files here", (u8"📁 " + std::to_string(you->attachments_sent_per_guild[ev.command.guild_id])), true);
-//            statistics.add_field("% files here", (u8"⚙️ " + std::to_string(static_cast<int>((100 * you->attachments_sent_per_guild[ev.command.guild_id]) / (you->attachments_sent == 0 ? 1 : you->attachments_sent))) + "%"), true);
-//            statistics.add_field("Commands triggered", (u8"⚡ " + std::to_string(you->commands_used)), true);
-//
-//            msg.add_component(
-//                dpp::component()
-//                    .add_component(
-//                        dpp::component()
-//                        .set_label("Get user information")
-//                        .set_id("showinfo-menu")
-//                        .set_type(dpp::cot_selectmenu)
-//                        .add_select_option(dpp::select_option("Local points",   "showinfo-localpt",     "The user points in this guild"))
-//                        .add_select_option(dpp::select_option("Global points",  "showinfo-globalpt",    "The global points (ranking)"))
-//                        .add_select_option(dpp::select_option("Statistics",     "showinfo-statistics",  "User stats, like messages sent, commands, attachments..."))
-//                    )
-//            );
-//            msg.add_component(
-//                dpp::component()
-//                    .add_component(
-//                        dpp::component()
-//                        .set_label(std::to_string(ev.command.usr.id))
-//                        .set_id("showinfo-userid_reg")
-//                        .set_type(dpp::cot_button)
-//                        .set_style(dpp::cos_secondary)
-//                        .set_disabled(true)
-//                    )
-//            );
-//
-//            msg.embeds.push_back(statistics);
-//            msg.set_content("");
-//            msg.set_flags(64);
-//            ev.reply(dpp::ir_update_message, msg, error_autoprint);
-//            return;
-//        }        
-//    }
-//    if (ev.custom_id == "guild-generate_menu") {
-//        const auto& selected = ev.values[0];
-//
-//        if (selected == "guildconf-export"){ // create a message with json there lol
-//
-//            const auto guil = tf_guild_info[ev.command.guild_id];
-//            if (!guil) {
-//                ev.reply(make_ephemeral_message("Something went wrong! Guild do not exist?! Please report error! I'm so sorry."));
-//                return;
-//            }
-//
-//            dpp::message msg;
-//            msg.set_content("Guild configuration");
-//            msg.add_file("guild_data.json", guil->to_json().dump(2));
-//            msg.set_flags(64);
-//            ev.reply(dpp::ir_update_message, msg, error_autoprint);
-//            return;
-//        }
-//        else if (selected == "guildconf-paste"){ // Show button enable/disable external copy/paste
-//
-//            const auto guil = tf_guild_info[ev.command.guild_id];
-//            if (!guil) {
-//                ev.reply(make_ephemeral_message("Something went wrong! Guild do not exist?! Please report error! I'm so sorry."));
-//                return;
-//            }
-//
-//            dpp::message msg(ev.command.channel_id, "**Paste command configuration**");
-//            msg.add_component(
-//                dpp::component()
-//                    .add_component(
-//                        make_boolean_button(guil->allow_external_paste)
-//                        .set_label("Allow external paste?")
-//                        .set_id("guildconf-paste-switch")
-//                    )
-//            );
-//            msg.set_flags(64);
-//            ev.reply(dpp::ir_update_message, msg, error_autoprint);
-//            return;
-//        }
-//        else if (selected == "guildconf-member_points"){ // Show buttons "select user", "set value/`$current_value`"
-//            dpp::message msg(ev.command.channel_id, "**Handle a user's point in this guild**");
-//            msg.add_component(
-//                dpp::component()
-//                    .add_component(dpp::component()
-//                        .set_type(dpp::cot_button)
-//                        .set_style(dpp::cos_primary)
-//                        .set_label("Select a user by ID")
-//                        .set_id("guildconf-member_points-select_userid")
-//                    )
-//                    .add_component(dpp::component()
-//                        .set_type(dpp::cot_button)
-//                        .set_style(dpp::cos_secondary)
-//                        .set_label("Select user first")
-//                        .set_disabled(true)
-//                        .set_id("guildconf-member_points-select_userpts")
-//                    )
-//            );
-//            msg.set_flags(64);
-//            ev.reply(dpp::ir_update_message, msg, error_autoprint);
-//            return;
-//        }
-//        else if (selected == "guildconf-leveling_roles"){ // Show buttons "select user", "set value/`$current_value`"
-//            dpp::message msg(ev.command.channel_id, "**Leveling setup**");
-//            msg.add_component(
-//                dpp::component()
-//                    .add_component(dpp::component()
-//                        .set_type(dpp::cot_button)
-//                        .set_style(dpp::cos_primary)
-//                        .set_label("Select specific chat to log leveling")
-//                        .set_id("guildconf-leveling_roles-select_chid")
-//                    )
-//                    .add_component(dpp::component()
-//                        .set_type(dpp::cot_button)
-//                        .set_style(dpp::cos_secondary)
-//                        .set_emoji("📩") // 🗑️✅📩 // discard all (disable select), use channel (enable select), on message (disable select)
-//                        .set_id("guildconf-leveling_roles-switch_channel")
-//                    )
-//            );
-//            msg.add_component(
-//                dpp::component()
-//                    .add_component(dpp::component()
-//                        .set_type(dpp::cot_button)
-//                        .set_style(dpp::cos_secondary)
-//                        .set_label("Manage roles per level")
-//                        .set_id("guildconf-leveling_roles-spawn_role_setup")
-//                    )
-//            );
-//            msg.set_flags(64);
-//            ev.reply(dpp::ir_update_message, msg, error_autoprint);
-//            return;
-//        }
-//        else if (selected == "guildconf-roles_command"){ // selectable list "guild-roles_command-list" + buttons: "new" (list), "replace" (list) and "trashcan" (select)
-//
-//            const auto guil = tf_guild_info[ev.command.guild_id];
-//            if (!guil) {
-//                ev.reply(make_ephemeral_message("Something went wrong! Guild do not exist?! Please report error! I'm so sorry."));
-//                return;
-//            }
-//
-//            // first new message
-//            dpp::message msg(ev.command.channel_id, "**Role commands**");
-//
-//            // generate auto
-//            ev.reply(dpp::ir_update_message, roleguild_auto_do(guil, msg, roleguild_tasks::UPDATE, {}), error_autoprint);
-//            return;
-//        }
-//        else if (selected == "guildconf-auto_roles") { // selectable list "guild-auto_roles" + buttons: "new" (list) and "trashcan"
-//
-//            const auto guil = tf_guild_info[ev.command.guild_id];
-//            if (!guil) {
-//                ev.reply(make_ephemeral_message("Something went wrong! Guild do not exist?! Please report error! I'm so sorry."));
-//                return;
-//            }
-//
-//            dpp::message msg(ev.command.channel_id, "**Automatic roles on join**");
-//            msg.add_component(
-//                dpp::component()
-//                    .add_component(dpp::component()
-//                        .set_type(dpp::cot_button)
-//                        .set_style(dpp::cos_primary)
-//                        .set_label("Add a role to the list")
-//                        .set_disabled(guil->roles_when_join.size() >= guild_props::max_onjoin_roles_len)
-//                        .set_id("guildconf-auto_roles-add")
-//                        .set_emoji("🆕")
-//                    )
-//                    .add_component(dpp::component()
-//                        .set_type(dpp::cot_button)
-//                        .set_style(dpp::cos_secondary)
-//                        .set_label("Remove a role from the list")
-//                        .set_disabled(guil->roles_when_join.size() == 0)
-//                        .set_id("guildconf-auto_roles-del")
-//                        .set_emoji("🗑️")
-//                    )
-//            );
-//
-//            msg.content = "**Current on join roles list [" + std::to_string(guil->roles_when_join.size()) + "/" + std::to_string(guild_props::max_onjoin_roles_len) + "]:**\n```cs\n";
-//
-//            if (guil->roles_when_join.size()){
-//                dpp::cache<dpp::role>* cach = dpp::get_role_cache();
-//                {
-//                    std::shared_lock<std::shared_mutex> lu(cach->get_mutex());
-//                    auto& rols = cach->get_container();
-//
-//                    for(const auto& it : guil->roles_when_join) {
-//                        msg.content += std::to_string(it) + ": #";
-//                        auto found = std::find_if(rols.begin(), rols.end(), [&](const std::pair<dpp::snowflake, dpp::role*>& s){ return s.first == it;});
-//                        if (found != rols.end()) msg.content += found->second->name;
-//                        msg.content += "\n";
-//                    }
-//                }
-//            }
-//            else {
-//                msg.content += "<empty>";
-//            }
-//
-//            msg.content += "\n```";
-//
-//            msg.set_flags(64);
-//            ev.reply(dpp::ir_update_message, msg, error_autoprint);
-//            return;
-//        }
-//        else if (selected == "guildconf-leveling_roles"){ // Show buttons for "messages? (true/false)" "where? (modal w/ chat name or id)"
-//            // TODO TODO TODO TODO TODO TODO
-//            // TODO TODO TODO TODO TODO TODO
-//            // TODO TODO TODO TODO TODO TODO
-//            // TODO TODO TODO TODO TODO TODO
-//            // TODO TODO TODO TODO TODO TODO
-//        }
-//    }
-//    else if (ev.custom_id == "guildconf-roles_command-select") {
-//        const std::string name_sel = ev.values[0];
-//
-//        const auto guil = tf_guild_info[ev.command.guild_id];
-//        if (!guil) {
-//            ev.reply(make_ephemeral_message("Something went wrong! Guild do not exist?! Please report error! I'm so sorry."));
-//            return;
-//        }
-//        
-//        ev.reply(dpp::ir_update_message, roleguild_auto_do(guil, ev.command.msg, roleguild_tasks::SELECTUPDATE, name_sel), error_autoprint);
-//        return;
-//    }
-//    ev.reply(make_ephemeral_message("Unexpected command. How is this possible? Command id that failed: `" + ev.custom_id + "`."));
-//    
-//
-//
-//
-//
-//    //const auto you = tf_user_info[ev.command.usr.id];
-//    //if (!you) {
-//    //    ev.reply(make_ephemeral_message("Something went wrong! You do not exist?! Please report error! I'm so sorry.");
-//    //    return;
-//    //}    
-//
 }

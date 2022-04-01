@@ -1,4 +1,5 @@
 #include <specific_functions.hpp>
+// SHOULD BE SAFE (MUTEXES)
 
 void g_on_react(const dpp::message_reaction_add_t& ev)
 {
@@ -62,7 +63,8 @@ void g_on_log(const dpp::log_t& log)
 
 void g_on_new_guild(dpp::cluster& core, const dpp::guild_create_t& ev)
 {
-    auto guil = tf_guild_info[ev.created->id];
+    force_const<guild_info> guil = tf_guild_info[ev.created->id];
+    std::lock_guard<std::shared_mutex> lg(guil.unsafe().muu);
 
     dpp::message msg;
     msg.guild_id = guild_backup_id;
@@ -77,13 +79,14 @@ void g_on_new_guild(dpp::cluster& core, const dpp::guild_create_t& ev)
         core.message_create(msg);
     }    
 
-    guil->guild_was_deleted = false;
-    guil->guild_on_outage = false;
+    guil.unsafe().guild_was_deleted = false;
+    guil.unsafe().guild_on_outage = false;
 }
 
 void g_on_left_guild(dpp::cluster& core, const dpp::guild_delete_t& ev)
 {
-    auto guil = tf_guild_info[ev.deleted->id];
+    force_const<guild_info> guil = tf_guild_info[ev.deleted->id];
+    std::lock_guard<std::shared_mutex> lg(guil.unsafe().muu);
 
     dpp::message msg;
     msg.guild_id = guild_backup_id;
@@ -93,11 +96,11 @@ void g_on_left_guild(dpp::cluster& core, const dpp::guild_delete_t& ev)
         msg.content = "❌ Left guild `" + ev.deleted->name + "`";
         core.message_create(msg);
 
-        guil->guild_was_deleted = true;
+        guil.unsafe().guild_was_deleted = true;
         tf_guild_info.free(ev.deleted->id);
     }
     else {
-        guil->guild_on_outage = true;
+        guil.unsafe().guild_on_outage = true;
 
         msg.content = "🔻 Guild unavailable (Discord outage)`" + ev.deleted->name + "`";
         core.message_create(msg);
@@ -110,27 +113,30 @@ void g_on_message(const dpp::message_create_t& ev)
 
     if (ev.msg.author.is_bot()) return;
 
-    auto you = tf_user_info[ev.msg.author.id];
-    if (!you) return; // discard
+    force_const<user_info> youu = tf_user_info[ev.msg.author.id];
+    if (!youu) return; // discard
+    std::unique_lock<std::shared_mutex> l2(youu.unsafe().muu);
 
-    you->messages_sent++;
-    you->messages_sent_per_guild[ev.msg.guild_id]++;
+    auto& you = youu.unsafe(); // it is safe.
 
-    you->attachments_sent += ev.msg.attachments.size();
-    you->attachments_sent_per_guild[ev.msg.guild_id] += ev.msg.attachments.size();
+    you.messages_sent++;
+    you.messages_sent_per_guild[ev.msg.guild_id]++;
 
-    auto guil = tf_guild_info[ev.msg.guild_id];
-    if (!guil) return; // abort :(
-
-    if (get_time_ms() <= guil->last_user_earn_points) return;
-    if (get_time_ms() <= you->last_points_earned) return;
+    you.attachments_sent += ev.msg.attachments.size();
+    you.attachments_sent_per_guild[ev.msg.guild_id] += ev.msg.attachments.size();
     
-    std::unique_lock<std::shared_mutex> l1(guil->mu, std::defer_lock);
-    std::unique_lock<std::shared_mutex> l2(you->mu, std::defer_lock);
-    std::lock(l1, l2);
+    force_const<guild_info> guill = tf_guild_info[ev.msg.guild_id];
+    if (!guill) return; // abort :(
+    std::unique_lock<std::shared_mutex> l1(guill.unsafe().muu);
 
-    mull old_pts_g = you->points;
-    mull old_pts_l = you->points_per_guild[ev.msg.guild_id];
+    auto& guil = guill.unsafe();
+
+    if (get_time_ms() <= guil.last_user_earn_points) return;
+    if (get_time_ms() <= you.last_points_earned) return;
+    
+
+    mull old_pts_g = you.points;
+    mull old_pts_l = you.points_per_guild[ev.msg.guild_id];
 
     int boost_final = 0;
     const bool had_boost = (random() % leveling::range_boost_chances == 0);
@@ -138,29 +144,29 @@ void g_on_message(const dpp::message_create_t& ev)
     if (had_boost) boost_final = static_cast<int>(rand() % leveling::range_boost_total) + leveling::range_boost_low;
     else boost_final = static_cast<int>(rand() % leveling::range_total) + leveling::range_low;
 
-    you->last_points_earned = get_time_ms() + leveling::time_to_earn_points_sameuser_ms;
-    guil->last_user_earn_points = get_time_ms() + leveling::time_to_earn_points_sameuser_ms;
+    you.last_points_earned = get_time_ms() + leveling::time_to_earn_points_sameuser_ms;
+    guil.last_user_earn_points = get_time_ms() + leveling::time_to_earn_points_sameuser_ms;
 
     if (boost_final == 0) return; // no changes
 
     if (boost_final < 0) {
-        if (you->points_per_guild[ev.msg.guild_id] < (-boost_final)) you->points_per_guild[ev.msg.guild_id] = 0;
-        else you->points_per_guild[ev.msg.guild_id] += boost_final;
-        if (you->points < (-boost_final)) you->points = 0;
-        else you->points += boost_final;
+        if (you.points_per_guild[ev.msg.guild_id] < (-boost_final)) you.points_per_guild[ev.msg.guild_id] = 0;
+        else you.points_per_guild[ev.msg.guild_id] += boost_final;
+        if (you.points < (-boost_final)) you.points = 0;
+        else you.points += boost_final;
     }
     else {
-        you->points_per_guild[ev.msg.guild_id] += boost_final;
-        you->points += boost_final;
+        you.points_per_guild[ev.msg.guild_id] += boost_final;
+        you.points += boost_final;
     }
-    if (boost_final > 0) you->times_they_got_positive_points++;
-    if (boost_final < 0) you->times_they_got_negative_points++;
+    if (boost_final > 0) you.times_they_got_positive_points++;
+    if (boost_final < 0) you.times_they_got_negative_points++;
         
     mull old_lvl_g = 1, old_lvl_l = 1;
     mull new_lvl_g = 1, new_lvl_l = 1;
 
-    mull new_pts_g = you->points;
-    mull new_pts_l = you->points_per_guild[ev.msg.guild_id];
+    mull new_pts_g = you.points;
+    mull new_pts_l = you.points_per_guild[ev.msg.guild_id];
 
     while(static_cast<mull>(pow(leveling::calc_level_div, old_lvl_g + leveling::threshold_points_level_0 - 1)) <= old_pts_g) old_lvl_g++;
     while(static_cast<mull>(pow(leveling::calc_level_div, old_lvl_l + leveling::threshold_points_level_0 - 1)) <= old_pts_l) old_lvl_l++;
@@ -176,7 +182,7 @@ void g_on_message(const dpp::message_create_t& ev)
     const bool was_level_up = (global_level_up || local_level_up);
 
     if (local_level_up || local_level_down) {
-        const auto& vecref = guil->role_per_level;
+        const auto& vecref = guil.role_per_level;
 
         if (vecref.size() > 0) {
             dpp::guild_member member;
@@ -203,17 +209,17 @@ void g_on_message(const dpp::message_create_t& ev)
             }
 
             if (had_update) {
-                ev.from->creator->guild_edit_member(member);
+                ev.from->creator->guild_edit_member(member, error_autoprint);
             }
         }
     }
 
-    if (!you->show_level_up_messages || guil->block_levelup_user_event) return;
+    if (!you.show_level_up_messages || guil.block_levelup_user_event) return;
 
     dpp::message replying;
     replying.set_type(dpp::message_type::mt_reply);
 
-    if (const auto _temp = guil->fallback_levelup_message_channel; _temp != 0) { // else follow guild rules
+    if (const auto _temp = guil.fallback_levelup_message_channel; _temp != 0) { // else follow guild rules
         replying.channel_id = _temp;
     }
     else { // else if guild has no chat, the triggered chat it is.
@@ -234,7 +240,7 @@ void g_on_message(const dpp::message_create_t& ev)
                 .icon_url = ev.msg.author.get_avatar_url(256)
             })
         .set_description(desc)
-        .set_color((you->pref_color < 0 ? random() : you->pref_color))
+        .set_color((you.pref_color < 0 ? random() : you.pref_color))
         .set_thumbnail(images::points_image_url);
 
     replying.embeds.push_back(autoembed);
@@ -248,10 +254,8 @@ void g_on_ready(const dpp::ready_t& ev, safe_data<slash_global>& sg)
     sg.safe<void>([&ev](slash_global& s){ s.update_bot_id(*ev.from->creator); });
 }
 
-
 void g_on_interaction(const dpp::interaction_create_t& ev)
 {
-    //ev.thinking();
     if (ev.command.type == dpp::interaction_type::it_ping) {
         ev.reply(dpp::interaction_response_type::ir_pong, "");
         return;
@@ -264,14 +268,15 @@ void g_on_interaction(const dpp::interaction_create_t& ev)
 
     dpp::command_interaction cmd = std::get<dpp::command_interaction>(ev.command.data);   
     
-
-    const auto you = tf_user_info[ev.command.usr.id];
-    if (!you) {
-        ev.reply(make_ephemeral_message("Something went wrong! You do not exist?! Please report error! I'm so sorry."));
-        return;
+    {
+        force_const<user_info> you = tf_user_info[ev.command.usr.id];
+        if (!you) {
+            ev.reply(make_ephemeral_message("Something went wrong! You do not exist?! Please report error! I'm so sorry."));
+            return;
+        }
+        std::lock_guard<std::shared_mutex> l(you.unsafe().muu);
+        you.unsafe().commands_used++;
     }
-
-    you->commands_used++;
 
     bool went_good = false;
 
@@ -649,360 +654,6 @@ dpp::message make_ephemeral_message(const std::string& str)
     return msg;
 }
 
-//dpp::message roleguild_auto_do(const std::shared_ptr<guild_info>& guil, const dpp::message& origmsg, const roleguild_tasks task, std::variant<std::monostate, guild_info::pair_id_name, std::string> input)
-//{
-//    dpp::message cpy = origmsg;
-//    std::string selected_group;
-//    size_t offset_group = 0;
-//    bool is_empty = false;
-//    std::string emplaced_error;
-//
-//    cpy.set_flags(64);
-//
-//    const auto f_find_ret_sizet = [&](const std::string& s) {
-//        for(size_t oof = 0; oof < guil->roles_available.size(); ++oof) {
-//            if (guil->roles_available[oof].name == s) return oof;
-//        }
-//        return static_cast<size_t>(-1);
-//    };
-//
-//    const auto f_reset_select = [&]{
-//        offset_group = 0;
-//        is_empty = guil->roles_available.empty();
-//        selected_group.clear();
-//    };
-//
-//    switch(task) {
-//    case roleguild_tasks::SELECTUPDATE:
-//    {
-//        selected_group = std::get<std::string>(input);
-//        offset_group = f_find_ret_sizet(selected_group);
-//        is_empty = false;
-//
-//        if (offset_group > guil->roles_available.size()) {
-//            emplaced_error = "Something went wrong while indexing groups.";
-//            f_reset_select();
-//        }
-//    }
-//        break;
-//    case roleguild_tasks::UPDATE:
-//    {
-//        if (guil->roles_available.size()) {
-//            selected_group = get_label(origmsg.components, "guildconf-roles_command-selected");
-//
-//            offset_group = f_find_ret_sizet(selected_group);
-//            is_empty = false;
-//
-//            if (offset_group > guil->roles_available.size()) {
-//                f_reset_select();
-//            }
-//        }
-//        else {
-//            f_reset_select();
-//        }
-//    }
-//        break;
-//    case roleguild_tasks::GROUP_ADD:
-//    {
-//        if (guil->roles_available.size() >= guild_props::max_role_groups) {
-//            emplaced_error = "Already full of groups!";
-//
-//            selected_group = get_label(origmsg.components, "guildconf-roles_command-selected");
-//            offset_group = f_find_ret_sizet(selected_group);
-//
-//            if (offset_group > guil->roles_available.size()) {
-//                emplaced_error = "Something went wrong while handling full group error.";
-//                f_reset_select();
-//            }
-//        }
-//        else {
-//            selected_group = std::get<std::string>(input);
-//            
-//            auto it = std::find_if(guil->roles_available.begin(), guil->roles_available.end(), [&](const guild_info::category& c){ return c.name == selected_group; });
-//            if (it == guil->roles_available.end()) {
-//                guild_info::category cat;
-//                cat.name = selected_group;
-//                guil->roles_available.push_back(cat);
-//                offset_group = guil->roles_available.size() - 1;
-//                is_empty = false;
-//            }
-//            else {
-//                emplaced_error = "Group already exists!";
-//
-//                if (guil->roles_available.size()){
-//                    offset_group = f_find_ret_sizet(selected_group);
-//
-//                    if (offset_group > guil->roles_available.size()){
-//                        emplaced_error = "Something went wrong while listing internal list of groups.";
-//                        f_reset_select();
-//                    }
-//                }
-//                else { // already exists, but empty group? HOW?
-//                    emplaced_error = "Something went wrong while listing internal list of groups.";
-//                    f_reset_select();
-//                }
-//            }
-//        }
-//    }
-//        break;
-//    case roleguild_tasks::GROUP_REMOVE:
-//    {
-//        const std::string& todel = std::get<std::string>(input);
-//
-//        auto it = std::find_if(guil->roles_available.begin(), guil->roles_available.end(), [&](const guild_info::category& c){ return c.name == todel; });
-//
-//        if (it != guil->roles_available.end()) {
-//            guil->roles_available.erase(it);
-//            f_reset_select();
-//        }
-//        else {
-//            emplaced_error = "Cannot find this group to delete.";
-//
-//            selected_group = get_label(origmsg.components, "guildconf-roles_command-selected");
-//            offset_group = f_find_ret_sizet(selected_group);
-//
-//            if (offset_group > guil->roles_available.size()) {
-//                emplaced_error = "Something went wrong while listing internal list of groups.";
-//                f_reset_select();
-//            }
-//        }
-//    }
-//        break;
-//    case roleguild_tasks::ROLE_ADD:
-//    case roleguild_tasks::ROLE_REMOVE:
-//    {
-//        if (!guil->roles_available.empty()) {
-//
-//            // SELECT AND OFFSET ARE SET HERE:
-//            selected_group = get_label(origmsg.components, "guildconf-roles_command-selected");
-//
-//            // OFFSET HERE, NO WORRIES LOL:
-//            if ((offset_group = f_find_ret_sizet(selected_group)) < guil->roles_available.size()) // true if found
-//            {
-//                is_empty = false;
-//                if (task == roleguild_tasks::ROLE_REMOVE) 
-//                {
-//                    const std::string key_task = std::get<std::string>(input); // add or remove what?
-//
-//                    if (key_task == "*") {
-//                        guil->roles_available[offset_group].list.clear();
-//                    }
-//                    else {
-//                        const unsigned long long transl_val = dpp::from_string<dpp::snowflake>(key_task); // may be 0, no prob tho, it fails later
-//
-//                        auto it = std::find_if(guil->roles_available[offset_group].list.begin(), guil->roles_available[offset_group].list.end(),
-//                            [&](const guild_info::pair_id_name& p) { return p.id == transl_val;});
-//
-//                        if (it != guil->roles_available[offset_group].list.end()) guil->roles_available[offset_group].list.erase(it);
-//                    }
-//                }
-//                else 
-//                {
-//                    if (guil->roles_available[offset_group].list.size() >= guild_props::max_role_group_each) {
-//                        emplaced_error = "Already full of roles on this group!";
-//                    }
-//                    else {
-//                        const guild_info::pair_id_name addin = std::get<guild_info::pair_id_name>(input); // add or remove what?
-//
-//                        auto it = std::find_if(guil->roles_available[offset_group].list.begin(), guil->roles_available[offset_group].list.end(),
-//                            [&](const guild_info::pair_id_name& p) { return p.id == addin.id;});
-//
-//                        if (it == guil->roles_available[offset_group].list.end()) {
-//                            guil->roles_available[offset_group].list.push_back(addin);
-//                        }
-//                        else { 
-//                            it->name = addin.name;
-//                        }
-//                    }
-//                }
-//            }
-//            else { // offset is broken / EOF
-//                emplaced_error = "Something went wrong while listing internal list of groups.";
-//                f_reset_select();
-//            }
-//        }
-//        else {
-//            is_empty = true;
-//        }
-//    }
-//        break;
-//    }
-//
-//    if (!is_empty && selected_group.empty() && offset_group < guil->roles_available.size()) selected_group = guil->roles_available[offset_group].name;
-//
-//    const bool tags_failed_once_redo = 
-//        !change_component(cpy.components, "guildconf-roles_command-select", [&](dpp::component& d) {
-//            if (guil->roles_available.size()) {
-//                d.options.clear();
-//                for(const auto& each : guil->roles_available)
-//                    d.add_select_option(dpp::select_option(each.name, each.name, "Select to manage it"));
-//            }
-//            else {
-//                for(auto msrc = cpy.components.begin(); msrc != cpy.components.end();)
-//                {
-//                    bool erased = false;
-//                    for(const auto& i : msrc->components){
-//                        if (i.custom_id == "guildconf-roles_command-select") {
-//                            cpy.components.erase(msrc);
-//                            msrc = cpy.components.end();
-//                            erased = true;
-//                        }
-//                    }
-//                    if (!erased) ++msrc;
-//                }
-//            }
-//        }) || !change_component(cpy.components, "guildconf-roles_command-addgroup", [&](dpp::component& d) {
-//            d.set_disabled(guil->roles_available.size() >= guild_props::max_role_groups);
-//        }) || !change_component(cpy.components, "guildconf-roles_command-delgroup", [&](dpp::component& d) {
-//            d.set_disabled(guil->roles_available.size() == 0);
-//        }) || !change_component(cpy.components, "guildconf-roles_command-selected", [&](dpp::component& d) {
-//            d.set_label(selected_group.size() ? selected_group : "<none selected>");
-//        }) || !change_component(cpy.components, "guildconf-roles_command-add", [&](dpp::component& d) {
-//            d.set_disabled(is_empty ? true : (guil->roles_available[offset_group].list.size() >= guild_props::max_role_group_each));
-//        }) || !change_component(cpy.components, "guildconf-roles_command-del", [&](dpp::component& d) {
-//            d.set_disabled(is_empty ? true : (guil->roles_available[offset_group].list.size() == 0));
-//        });
-//
-//    if (tags_failed_once_redo) 
-//    {
-//        cpy.components.clear();
-//
-//        if (guil->roles_available.size()) {
-//            dpp::component clist;
-//            clist.set_label("Configurations");
-//            clist.set_id("guildconf-roles_command-select");
-//            clist.set_type(dpp::cot_selectmenu);
-//
-//            for(const auto& each : guil->roles_available) {
-//                clist.add_select_option(dpp::select_option(each.name, each.name, "Select to manage it"));
-//            }
-//
-//            cpy.add_component(dpp::component().add_component(clist));
-//        }
-//        cpy.add_component(
-//            dpp::component()
-//                .add_component(dpp::component()
-//                    .set_type(dpp::cot_button)
-//                    .set_style(dpp::cos_primary)
-//                    .set_label("New role list")
-//                    .set_disabled(guil->roles_available.size() >= guild_props::max_role_groups)
-//                    .set_id("guildconf-roles_command-addgroup")
-//                    .set_emoji("🌟")
-//                )
-//                .add_component(dpp::component()
-//                    .set_type(dpp::cot_button)
-//                    .set_style(dpp::cos_danger)
-//                    .set_label("Remove role list")
-//                    .set_disabled(guil->roles_available.size() == 0)
-//                    .set_id("guildconf-roles_command-delgroup")
-//                    .set_emoji("❌")
-//                )
-//                .add_component(dpp::component()
-//                    .set_type(dpp::cot_button)
-//                    .set_style(dpp::cos_secondary)
-//                    .set_label(selected_group.size() ? selected_group : "<none selected>")
-//                    .set_id("guildconf-roles_command-selected")
-//                    .set_disabled(true)
-//                )
-//                .add_component(dpp::component()
-//                    .set_type(dpp::cot_button)
-//                    .set_style(dpp::cos_primary)
-//                    .set_label("Add a role to the list")
-//                    .set_disabled(is_empty ? true : (guil->roles_available[offset_group].list.size() >= guild_props::max_role_group_each))
-//                    .set_id("guildconf-roles_command-add")
-//                    .set_emoji("🆕")
-//                )
-//                .add_component(dpp::component()
-//                    .set_type(dpp::cot_button)
-//                    .set_style(dpp::cos_secondary)
-//                    .set_label("Remove a role from the list")
-//                    .set_disabled(is_empty ? true : (guil->roles_available[offset_group].list.size() == 0))
-//                    .set_id("guildconf-roles_command-del")
-//                    .set_emoji("🗑️")
-//                )
-//        );
-//    }
-//
-//    if (is_empty) {
-//        cpy.content = "**Config is empty**\nStart by creating a new role list!" + (emplaced_error.size() ? ("\n\n**ERROR:** " + emplaced_error) : "");
-//        return cpy;
-//    }
-//
-//    const auto& selectd = guil->roles_available[offset_group];
-//
-//    cpy.content = "**Current list [" + 
-//        std::to_string(selectd.list.size()) + "/" + std::to_string(guild_props::max_role_group_each) + " roles, " +
-//        std::to_string(guil->roles_available.size()) + "/" + std::to_string(guild_props::max_role_groups) + " groups]:**\n```cs\n";
-//
-//    cpy.content += "Group selected: " + selected_group + "\n";
-//
-//    if (selectd.list.size()){
-//        dpp::cache<dpp::role>* cach = dpp::get_role_cache();
-//        {
-//            std::shared_lock<std::shared_mutex> lu(cach->get_mutex());
-//            auto& rols = cach->get_container();
-//
-//            for(const auto& it : selectd.list) {
-//                cpy.content += " " + std::to_string(it.id) + " [" + it.name + "]: #";
-//                auto found = std::find_if(rols.begin(), rols.end(), [&](const std::pair<dpp::snowflake, dpp::role*>& s){ return s.first == it.id;});
-//                if (found != rols.end()) cpy.content += found->second->name;
-//                cpy.content += "\n";
-//            }
-//        }
-//    }
-//    else {
-//        cpy.content += " <empty>";
-//    }
-//
-//    if (emplaced_error.size()) cpy.content += "\n\n**ERROR:** " + emplaced_error;
-//
-//    cpy.content += "\n```\n**Select another group below, if you want to:**";
-//
-//    return cpy;
-//}
-
-//dpp::component make_selectable_list(const std::string& listkey, const size_t page, std::vector<dpp::select_option> lst)
-//{
-//    dpp::component selector;
-//    for(const auto& it : lst) selector.add_select_option(it);
-//    selector.set_label("Select item");
-//    selector.set_id(listkey);
-//
-//    dpp::component d;
-//    
-//    d.add_component(dpp::component().add_component(selector));
-//    d.add_component(dpp::component()
-//        .add_component(dpp::component()
-//            .set_type(dpp::cot_button)
-//            .set_label("previous")
-//            .set_emoji(navigation_emojis[0])
-//            .set_style(dpp::cos_secondary)
-//            .set_id(listkey + "_prev")
-//        )
-//        .add_component(dpp::component()
-//            .set_type(dpp::cot_button)
-//            .set_label("page " + std::to_string(page))
-//            .set_emoji(navigation_emojis[1])
-//            .set_style(dpp::cos_secondary)
-//            .set_id(listkey + "_page")
-//        )
-//        .add_component(dpp::component()
-//            .set_type(dpp::cot_button)
-//            .set_label("next")
-//            .set_emoji(navigation_emojis[2])
-//            .set_style(dpp::cos_secondary)
-//            .set_id(listkey + "_next")
-//        )
-//    );
-//    
-//    return d;
-//}
-//
-//dpp::component& update_selectable_list(dpp::component& d, const size_t page, std::vector<dpp::select_option> lst)
-//{
-//    return (d = make_selectable_list(d.custom_id, page, lst));
-//}
-
 bool auto_handle_button_switch(const dpp::interaction_create_t& ev, const std::string& key, std::function<void(dpp::component&)> f)
 {
     dpp::message cpy = ev.command.msg;
@@ -1168,16 +819,13 @@ bool run_botstatus(const dpp::interaction_create_t& ev, const dpp::command_inter
 
 bool run_self(const dpp::interaction_create_t& ev)
 {
-    const auto you = tf_user_info[ev.command.usr.id];
-    if (!you) {
-        ev.reply(make_ephemeral_message("Something went wrong! You do not exist?! Please report error! I'm so sorry."));
-        return true;
-    }
-    const auto guil = tf_guild_info[ev.command.guild_id];
-    if (!guil) {
-        ev.reply(make_ephemeral_message("Something went wrong! Guild do not exist?! Please report error! I'm so sorry."));
-        return true;
-    }
+    force_const<user_info> you = tf_user_info[ev.command.usr.id];
+    if (!you) { ev.reply(make_ephemeral_message("Something went wrong! You do not exist?! Please report error! I'm so sorry.")); return true; }
+    force_const<guild_info> guil = tf_guild_info[ev.command.guild_id];
+    if (!guil) { ev.reply(make_ephemeral_message("Something went wrong! Guild do not exist?! Please report error! I'm so sorry.")); return true; }
+
+    std::shared_lock<std::shared_mutex> lg(guil.unsafe().muu);
+    std::shared_lock<std::shared_mutex> lu(you.unsafe().muu);
 
     transl_button_event wrk;
 
@@ -1212,11 +860,10 @@ bool run_poll(const dpp::interaction_create_t& ev, const dpp::command_interactio
 
 bool run_ping(const dpp::interaction_create_t& ev)
 {
-    const auto guil = tf_guild_info[ev.command.guild_id];
-    if (!guil) {
-        ev.reply(make_ephemeral_message("Something went wrong! Guild do not exist?! Please report error! I'm so sorry."));
-        return true;
-    }
+    force_const<guild_info> guil = tf_guild_info[ev.command.guild_id];
+    if (!guil) { ev.reply(make_ephemeral_message("Something went wrong! Guild do not exist?! Please report error! I'm so sorry.")); return true; }
+
+    std::shared_lock<std::shared_mutex> lg(guil.unsafe().muu);
 
     dpp::message msg;
     if (!guil->commands_public) msg.set_flags(dpp::m_ephemeral);
@@ -1229,16 +876,13 @@ bool run_ping(const dpp::interaction_create_t& ev)
 
 bool run_config_server(const dpp::interaction_create_t& ev, const dpp::command_interaction& cmd)
 {
-    const auto guil = tf_guild_info[ev.command.guild_id];
-    if (!guil) {
-        ev.reply(make_ephemeral_message("Something went wrong! Guild do not exist?! Please report error! I'm so sorry."));
-        return true;
-    }
-    if (!is_member_admin(ev.command.member)) {
-        ev.reply(make_ephemeral_message("I think you're not an admin or cache is not up to date :("));
-        return true;
-    }
+    if (!is_member_admin(ev.command.member)) { ev.reply(make_ephemeral_message("I think you're not an admin or cache is not up to date :(")); return true; }
 
+    force_const<guild_info> guil = tf_guild_info[ev.command.guild_id];
+    if (!guil) { ev.reply(make_ephemeral_message("Something went wrong! Guild do not exist?! Please report error! I'm so sorry.")); return true; }
+
+    std::shared_lock<std::shared_mutex> lg(guil.unsafe().muu);
+    
     transl_button_event wrk;
 
     wrk.push_or_replace(select_row()
@@ -1261,26 +905,29 @@ bool run_config_server(const dpp::interaction_create_t& ev, const dpp::command_i
 
 bool run_copy(const dpp::interaction_create_t& ev, const dpp::command_interaction& cmd)
 {
-    const auto you = tf_user_info[ev.command.usr.id];
-    if (!you) {
-        ev.reply(make_ephemeral_message("Something went wrong! You do not exist?! Please report error! I'm so sorry."));
-        return true;
+    force_const<user_info> you = tf_user_info[ev.command.usr.id];
+    if (!you) { ev.reply(make_ephemeral_message("Something went wrong! You do not exist?! Please report error! I'm so sorry.")); return true; }
+
+    {
+        std::lock_guard<std::shared_mutex> l(you.unsafe().muu);
+        you.unsafe().clipboard.message_id = cmd.target_id;
+        you.unsafe().clipboard.channel_id = ev.command.channel_id;
+        you.unsafe().clipboard.guild_id = ev.command.guild_id;
     }
 
-    you->clipboard.message_id = cmd.target_id;
-    you->clipboard.channel_id = ev.command.channel_id;
-    you->clipboard.guild_id = ev.command.guild_id;
-
-    ev.reply(make_ephemeral_message("Copied message to clipboard! Use /paste somewhere to paste a reference to it!"));
+    ev.reply(make_ephemeral_message("Copied message reference to clipboard! Use /paste somewhere to paste a reference to it! (bot must be able to see it to reference it!)"));
     return true;
 }
 
 bool run_paste(const dpp::interaction_create_t& ev, const dpp::command_interaction& cmd)
 {
-    const auto you = tf_user_info[ev.command.usr.id];
+    force_const<user_info> you = tf_user_info[ev.command.usr.id];
     if (!you) { ev.reply(make_ephemeral_message("Something went wrong! You do not exist?! Please report error! I'm so sorry.")); return true; }
-    const auto guil = tf_guild_info[ev.command.guild_id];
+    force_const<guild_info> guil = tf_guild_info[ev.command.guild_id];
     if (!guil) { ev.reply(make_ephemeral_message("Something went wrong! Guild do not exist?! Please report error! I'm so sorry.")); return true; }
+
+    std::shared_lock<std::shared_mutex> lg(guil.unsafe().muu);
+    std::shared_lock<std::shared_mutex> lu(you.unsafe().muu);
 
     if (!you->clipboard.has_data()) { ev.reply(make_ephemeral_message("You haven't copy a message yet! Try right click on one and Apps -> Copy to clipboard!")); return true; }
 
@@ -1297,12 +944,6 @@ bool run_paste(const dpp::interaction_create_t& ev, const dpp::command_interacti
 
 bool run_showinfo(const dpp::interaction_create_t& ev)
 {
-    const auto guil = tf_guild_info[ev.command.guild_id];
-    if (!guil) {
-        ev.reply(make_ephemeral_message("Something went wrong! Guild do not exist?! Please report error! I'm so sorry."));
-        return true;
-    }
-
     dpp::snowflake usrid = ev.command.usr.id;
     bool was_right_click = false;
 
@@ -1318,7 +959,12 @@ bool run_showinfo(const dpp::interaction_create_t& ev)
     dpp::user currusr;
     bool replied_already = false;
 
-    const auto do_showinfo_intern = [guil](const dpp::interaction_create_t& mev, dpp::user musr, bool replied_al){
+    const auto do_showinfo_intern = [ev](const dpp::interaction_create_t& mev, dpp::user musr, bool replied_al){
+        force_const<guild_info> guil = tf_guild_info[ev.command.guild_id];
+        if (!guil) { ev.reply(make_ephemeral_message("Something went wrong! Guild do not exist?! Please report error! I'm so sorry.")); return; }
+        
+        std::shared_lock<std::shared_mutex> lg(guil.unsafe().muu);
+
         transl_button_event wrk;
 
         wrk.push_or_replace(select_row()
@@ -1348,6 +994,11 @@ bool run_showinfo(const dpp::interaction_create_t& ev)
 
         auto it = std::find_if(vec.begin(), vec.end(), [&](const std::pair<dpp::snowflake, dpp::user*>& u){ return u.first == usrid; });
         if (it == vec.end()) {
+            force_const<guild_info> guil = tf_guild_info[ev.command.guild_id];
+            if (!guil) {ev.reply(make_ephemeral_message("Something went wrong! Guild do not exist?! Please report error! I'm so sorry.")); return true;}
+
+            std::shared_lock<std::shared_mutex> lg(guil.unsafe().muu);
+
             ev.reply(dpp::message().set_content("This user is not on cache. Trying to load it... (please wait some seconds, this message will update soon, hopefully)").set_flags(guil->commands_public ? 0 : dpp::m_ephemeral));
             if (was_right_click) {
                 ev.from->creator->user_get(usrid, [ev, do_showinfo_intern](const dpp::confirmation_callback_t& conf){
@@ -1378,12 +1029,11 @@ bool run_showinfo(const dpp::interaction_create_t& ev)
 
 bool run_roles(const dpp::interaction_create_t& ev)
 {
-    const auto guil = tf_guild_info[ev.command.guild_id];
-    if (!guil) {
-        ev.reply(make_ephemeral_message("Something went wrong! Guild do not exist?! Please report error! I'm so sorry."));
-        return true;
-    }
+    force_const<guild_info> guil = tf_guild_info[ev.command.guild_id];
+    if (!guil) { ev.reply(make_ephemeral_message("Something went wrong! Guild do not exist?! Please report error! I'm so sorry.")); return true; }
 
+    std::shared_lock<std::shared_mutex> lg(guil.unsafe().muu);
+    
     const auto& available_roles = guil->roles_available;
 
     if (available_roles.empty()) {

@@ -3,8 +3,9 @@
 #include <dpp/dpp.h>
 #include <dpp/nlohmann/json.hpp>
 #include <dpp/fmt/format.h>
-#include <console.h>
-#include <bomb.h>
+#include <Lunaris-Console/console.h>
+#include <Lunaris-Bomb/bomb.h>
+#include <Lunaris-Mutex/mutex.h>
 
 #include <defaults.hpp>
 #include <general_functions.hpp>
@@ -41,13 +42,17 @@ struct user_info {
 
     // clipboard stuff
     clipboard_data clipboard; // good
-    mutable std::shared_mutex mu;
+    mutable std::shared_mutex muu;
 
     // user configurable:
     bool show_level_up_messages = true;
 
     nlohmann::json to_json() const;
     void from_json(const nlohmann::json&);
+
+    unsigned long long get_points_on_guild(const unsigned long long&) const;
+    unsigned long long get_messages_on_guild(const unsigned long long&) const;
+    unsigned long long get_attachments_on_guild(const unsigned long long&) const;
 
     // ======== automatic things ======== //
     const dpp::snowflake __user_id;

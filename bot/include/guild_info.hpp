@@ -3,8 +3,9 @@
 #include <dpp/dpp.h>
 #include <dpp/nlohmann/json.hpp>
 #include <dpp/fmt/format.h>
-#include <console.h>
-#include <bomb.h>
+#include <Lunaris-Console/console.h>
+#include <Lunaris-Bomb/bomb.h>
+#include <Lunaris-Mutex/mutex.h>
 
 #include <defaults.hpp>
 #include <general_functions.hpp>
@@ -58,7 +59,7 @@ struct guild_info {
     bool guild_on_outage = false; // unavailable
     bool allow_external_paste = true;
     bool commands_public = false; // slash commands flag not 64?
-    mutable std::shared_mutex mu;
+    mutable std::shared_mutex muu;
 
     nlohmann::json to_json() const;
     void from_json(const nlohmann::json&);

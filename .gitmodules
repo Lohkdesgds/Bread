@@ -7,3 +7,6 @@
 [submodule "libs/Lunaris-Bomb"]
 	path = libs/Lunaris-Bomb
 	url = https://www.github.com/Lohkdesgds/Lunaris-Bomb
+[submodule "libs/Lunaris-Mutex"]
+	path = libs/Lunaris-Mutex
+	url = https://www.github.com/Lohkdesgds/Lunaris-Mutex

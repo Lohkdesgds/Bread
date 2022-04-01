@@ -8,8 +8,9 @@
 #include <unistd.h>
 #include <iostream>
 
-#include <console.h>
-#include <bomb.h>
+#include <Lunaris-Console/console.h>
+#include <Lunaris-Bomb/bomb.h>
+#include <Lunaris-Mutex/mutex.h>
 
 #include <defaults.hpp>
 #include <process_info.hpp>

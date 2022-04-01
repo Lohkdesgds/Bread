@@ -36,3 +36,33 @@ inline T safe_data<T>::reset(T&& v)
     obj = std::move(v);
     return mov;
 }
+
+template<typename T>
+force_const<T>::force_const(const std::shared_ptr<T>& p)
+    : ptr(p)
+{
+}
+
+template<typename T>
+const T* const force_const<T>::operator->() const
+{
+    return ptr.get();
+}
+
+template<typename T>
+const T& force_const<T>::operator*() const
+{
+    return *ptr.get();
+}
+
+template<typename T>
+T& force_const<T>::unsafe()
+{
+    return *ptr.get();
+}
+
+template<typename T>
+force_const<T>::operator bool() const
+{
+    return ptr.get() != nullptr;
+}

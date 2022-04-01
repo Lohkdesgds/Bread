@@ -40,8 +40,7 @@ target_link_libraries(${PROJECT_NAME}
 # Specify includes
 target_include_directories(${PROJECT_NAME} PRIVATE
    libs/DPP/include
-   libs/Lunaris-Console
-   libs/Lunaris-Bomb
+   libs
    bot/include
    #libs/spdlog/include # Like before, if you need spdlog
 )

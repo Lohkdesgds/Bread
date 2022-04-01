@@ -1,27 +1,30 @@
 #include <specific_functions.hpp>
+// SHOULD BE SAFE (MUTEXES)
+
 
 void g_on_button_click(const dpp::button_click_t& ev)
 {
     transl_button_event wrk(ev);
 
-    const auto guil = tf_guild_info[ev.command.guild_id];
+    force_const<guild_info> guil = tf_guild_info[ev.command.guild_id];
     if (!guil) { ev.reply(make_ephemeral_message("Something went wrong! Guild do not exist?! Please report error! I'm so sorry.")); return; }
+
+    std::shared_lock<std::shared_mutex> guilmtx(guil.unsafe().muu);
 
     if (!wrk.get_trigger().target_if_button) { ev.reply(make_ephemeral_message("Something went wrong! Internal reference got LOST!")); return; }
 
     auto& trigg = wrk.get_trigger();
 
     if (trigg.group_name == "selfconf") {
-        const auto you = tf_user_info[ev.command.usr.id];
-        if (!you) {
-            ev.reply(make_ephemeral_message("Something went wrong! You do not exist?! Please report error! I'm so sorry."));
-            return;
-        }
+        force_const<user_info> you = tf_user_info[ev.command.usr.id];
+        if (!you) { ev.reply(make_ephemeral_message("Something went wrong! You do not exist?! Please report error! I'm so sorry.")); return; }
         
+        std::unique_lock<std::shared_mutex> lu(you.unsafe().muu);
+
         if (trigg.item_name == "ptspublic") {
             trigg.target_if_button->extra.style = 
                 (trigg.target_if_button->extra.style == dpp::cos_success) ? dpp::cos_danger : dpp::cos_success;
-            you->show_level_up_messages = trigg.target_if_button->extra.style == dpp::cos_success;
+            you.unsafe().show_level_up_messages = trigg.target_if_button->extra.style == dpp::cos_success;
             wrk.reply(!guil->commands_public);
             return;
         }
@@ -42,20 +45,20 @@ void g_on_button_click(const dpp::button_click_t& ev)
     }
     if (trigg.group_name == "TMPcommconf") {
 
-        const auto guil = tf_guild_info[ev.command.guild_id];
-        if (!guil) { ev.reply(make_ephemeral_message("Something went wrong! Guild do not exist?! Please report error! I'm so sorry.")); return; }
+        guilmtx.unlock();
+        std::unique_lock<std::shared_mutex> gl(guil.unsafe().muu);
 
         if (trigg.item_name == "ext") {
             trigg.target_if_button->extra.style = 
                 (trigg.target_if_button->extra.style == dpp::cos_success) ? dpp::cos_danger : dpp::cos_success;
-            guil->allow_external_paste = trigg.target_if_button->extra.style == dpp::cos_success;
+            guil.unsafe().allow_external_paste = trigg.target_if_button->extra.style == dpp::cos_success;
             wrk.reply(!guil->commands_public);
             return;
         }
         if (trigg.item_name == "pub") {
             trigg.target_if_button->extra.style =
                 (trigg.target_if_button->extra.style == dpp::cos_success) ? dpp::cos_danger : dpp::cos_success;
-            guil->commands_public = trigg.target_if_button->extra.style == dpp::cos_success;
+            guil.unsafe().commands_public = trigg.target_if_button->extra.style == dpp::cos_success;
             wrk.reply(!guil->commands_public);
             return;
         }
@@ -149,213 +152,4 @@ void g_on_button_click(const dpp::button_click_t& ev)
 
     ev.reply(make_ephemeral_message("Something went wrong! Track: on_button_click > ?"));
     return;
-
-
-
-
-
-
-
-
-
-
-    if (ev.custom_id == "user-show_level_up_messages")
-    {
-        const auto you = tf_user_info[ev.command.usr.id];
-        if (!you) {
-            ev.reply(make_ephemeral_message("Something went wrong! You do not exist?! Please report error! I'm so sorry."));
-            return;
-        }
-
-        auto_handle_button_switch(ev, ev.custom_id, [&](dpp::component& it){
-            you->show_level_up_messages = !you->show_level_up_messages;
-            set_boolean_button(you->show_level_up_messages, it);
-        });
-    }
-    else if (ev.custom_id == "user-pref_color")
-    {
-        dpp::interaction_modal_response modal("user-pref_color", "Select color");
-        modal.add_component(
-            dpp::component()
-                .set_label("What color best describes you?")
-                .set_id("color")
-                .set_type(dpp::cot_text)
-                .set_required(true)
-                .set_placeholder("red, green, blue, ..., black, default, 0xHEX or DECIMAL")
-                .set_min_length(1)
-                .set_max_length(20)
-                .set_text_style(dpp::text_short)
-        );
-        ev.dialog(modal, error_autoprint);
-    }
-    else if (ev.custom_id == "user-download_user_data")
-    {
-        const auto you = tf_user_info[ev.command.usr.id];
-        if (!you) {
-            ev.reply(make_ephemeral_message("Something went wrong! You do not exist?! Please report error! I'm so sorry."));
-            return;
-        }
-
-        dpp::message msg;
-        msg.set_content("Your user data:");
-        msg.add_file("user_data.json", you->to_json().dump(2));
-        msg.set_flags(64);
-        ev.reply(msg, error_autoprint);
-    }
-    else if (ev.custom_id == "guildconf-paste-switch")
-    {
-        const auto guil = tf_guild_info[ev.command.guild_id];
-        if (!guil) {
-            ev.reply(make_ephemeral_message("Something went wrong! Guild do not exist?! Please report error! I'm so sorry."));
-            return;
-        }
-
-        auto_handle_button_switch(ev, ev.custom_id, [&](dpp::component& it){
-            guil->allow_external_paste = !guil->allow_external_paste;
-            set_boolean_button(guil->allow_external_paste, it);
-        });
-    }
-    else if (ev.custom_id == "guildconf-member_points-select_userid")
-    {        
-        dpp::interaction_modal_response modal(ev.custom_id, "Enter user ID");
-        modal.add_component(
-            dpp::component()
-                .set_label("Enter a numeric user ID")
-                .set_id("number")
-                .set_type(dpp::cot_text)
-                .set_required(true)
-                .set_placeholder("0123456789...")
-                .set_min_length(1)
-                .set_max_length(20)
-                .set_text_style(dpp::text_short)
-        );
-        ev.dialog(modal, error_autoprint);
-    }
-    else if (ev.custom_id == "guildconf-member_points-select_userpts")
-    {
-        dpp::interaction_modal_response modal(ev.custom_id, "Change user local points");
-        modal.add_component(
-            dpp::component()
-                .set_label("Set this user points on this guild")
-                .set_id("number")
-                .set_type(dpp::cot_text)
-                .set_required(true)
-                .set_placeholder("A number")
-                .set_min_length(1)
-                .set_max_length(20)
-                .set_text_style(dpp::text_short)
-        );
-        ev.dialog(modal, error_autoprint);
-    }
-    else if (ev.custom_id == "guildconf-auto_roles-add")
-    {
-        dpp::interaction_modal_response modal(ev.custom_id, "Add one or more roles to list");
-        modal.add_component(
-            dpp::component()
-                .set_label("Paste IDs here")
-                .set_id("paragraph")
-                .set_type(dpp::cot_text)
-                .set_required(true)
-                .set_placeholder("123456...")
-                .set_min_length(1)
-                .set_max_length(512)
-                .set_text_style(dpp::text_paragraph)
-        );
-        ev.dialog(modal, error_autoprint);
-    }
-    else if (ev.custom_id == "guildconf-auto_roles-del")
-    {
-        dpp::interaction_modal_response modal(ev.custom_id, "Remove one or more roles from list");
-        modal.add_component(
-            dpp::component()
-                .set_label("Paste IDs or * to delete all.")
-                .set_id("paragraph")
-                .set_type(dpp::cot_text)
-                .set_required(true)
-                .set_placeholder("123456...")
-                .set_min_length(1)
-                .set_max_length(512)
-                .set_text_style(dpp::text_paragraph)
-        );
-        ev.dialog(modal, error_autoprint);
-    }
-    else if (ev.custom_id == "guildconf-roles_command-addgroup")
-    {
-        dpp::interaction_modal_response modal(ev.custom_id, "Create new role group");
-        modal.add_component(
-            dpp::component()
-                .set_label("Give it a name")
-                .set_id("name")
-                .set_type(dpp::cot_text)
-                .set_required(true)
-                .set_placeholder("Funky group")
-                .set_min_length(1)
-                .set_max_length(20)
-                .set_text_style(dpp::text_short)
-        );
-        ev.dialog(modal, error_autoprint);
-    }
-    else if (ev.custom_id == "guildconf-roles_command-delgroup")
-    {
-        dpp::interaction_modal_response modal(ev.custom_id, "Remove one role group");
-        modal.add_component(
-            dpp::component()
-                .set_label("Tell me its name")
-                .set_id("name")
-                .set_type(dpp::cot_text)
-                .set_required(true)
-                .set_placeholder("Funky group")
-                .set_min_length(1)
-                .set_max_length(20)
-                .set_text_style(dpp::text_short)
-        );
-        ev.dialog(modal, error_autoprint);
-    }
-    else if (ev.custom_id == "guildconf-roles_command-add")
-    {
-        dpp::interaction_modal_response modal(ev.custom_id, "Add role to list");
-        modal.add_component(
-            dpp::component()
-                .set_label("Role ID")
-                .set_id("roleid")
-                .set_type(dpp::cot_text)
-                .set_required(true)
-                .set_placeholder("123456...")
-                .set_min_length(1)
-                .set_max_length(20)
-                .set_text_style(dpp::text_short)
-        )
-        .add_row()
-        .add_component(
-            dpp::component()
-                .set_label("Name to show")
-                .set_id("name")
-                .set_type(dpp::cot_text)
-                .set_required(true)
-                .set_placeholder("My cool role")
-                .set_min_length(1)
-                .set_max_length(40)
-                .set_text_style(dpp::text_short)
-        );
-        ev.dialog(modal, error_autoprint);
-    }
-    else if (ev.custom_id == "guildconf-roles_command-del")
-    {
-        dpp::interaction_modal_response modal(ev.custom_id, "Remove role from list");
-        modal.add_component(
-            dpp::component()
-                .set_label("Paste ID or * to delete all.")
-                .set_id("roleid")
-                .set_type(dpp::cot_text)
-                .set_required(true)
-                .set_placeholder("123456...")
-                .set_min_length(1)
-                .set_max_length(20)
-                .set_text_style(dpp::text_short)
-        );
-        ev.dialog(modal, error_autoprint);
-    }
-    else {
-        ev.reply(dpp::ir_update_message, "This interaction is unknown. Please try again later!", error_autoprint);
-    }
 }

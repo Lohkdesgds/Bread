@@ -3,7 +3,9 @@
 #include <dpp/dpp.h>
 #include <dpp/nlohmann/json.hpp>
 #include <dpp/fmt/format.h>
-#include <console.h>
+#include <Lunaris-Console/console.h>
+#include <Lunaris-Bomb/bomb.h>
+#include <Lunaris-Mutex/mutex.h>
 
 struct general_config {
     std::string token;
