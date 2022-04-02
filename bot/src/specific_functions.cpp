@@ -550,8 +550,38 @@ void input_handler_cmd(dpp::cluster& bot, bool& _keep, safe_data<general_config>
         break;
     case commands::MEMSTATUS:
     {
+        double memuse_mb = 0.0;
+        double resident_mb = 0.0;
+        int num_threads = 0;
+
+        {
+            process_info proc;
+            proc.generate();
+            num_threads                  = std::stoi(proc.get(process_info::data::NUM_THREADS));
+            long long raw_rss            = std::stoll(proc.get(process_info::data::RSS));
+            unsigned long long raw_vsize = std::stoull(proc.get(process_info::data::VSIZE));
+
+            memuse_mb = raw_vsize * 1.0 / 1048576; // 1024*1024
+            resident_mb = raw_rss * (1.0 * sysconf(_SC_PAGE_SIZE) / 1048576);
+        }
         cout << console::color::GREEN << "[MAIN] Data in memory (custom data):";
-        cout << console::color::GREEN << "[MAIN] Users: " << tf_user_info.size();
+        cout << console::color::DARK_GREEN << "[MAIN] Users: " << tf_user_info.size();
+        cout << console::color::DARK_GREEN << "[MAIN] Guilds: " << tf_guild_info.size();
+        cout << console::color::DARK_GREEN << "[MAIN] Users (dpp): " << dpp::get_user_cache()->get_container().size();
+        cout << console::color::DARK_GREEN << "[MAIN] Guilds (dpp): " << dpp::get_guild_cache()->get_container().size();
+        cout << console::color::DARK_GREEN << "[MAIN] Roles (dpp): " << dpp::get_role_cache()->get_container().size();
+        cout << console::color::DARK_GREEN << "[MAIN] Channels (dpp): " << dpp::get_channel_cache()->get_container().size();
+        cout << console::color::DARK_GREEN << "[MAIN] Emojis (dpp): " << dpp::get_emoji_cache()->get_container().size();
+        cout << console::color::DARK_GREEN << "[MAIN] Memory use [TOTAL, MB]: " << memuse_mb;
+        cout << console::color::DARK_GREEN << "[MAIN] Memory use [RESIDENT, MB]: " << resident_mb;
+        cout << console::color::DARK_GREEN << "[MAIN] Threads: " << num_threads;
+        /*
+user, fi
+guild, f
+role, fi
+channel,
+emoji, f
+        */
     }
         break;
     case commands::DELETEGLOBALSLASH:
