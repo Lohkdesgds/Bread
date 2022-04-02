@@ -29,8 +29,8 @@ void g_on_react(const dpp::message_reaction_add_t& ev)
                 }
             }
             else {
-                if (std::find_if(msg.reactions.begin(), msg.reactions.end(), [&](const dpp::reaction& e){ return e.emoji_id == emoj.id && e.emoji_name == emoj.name; }) != msg.reactions.end()){ // add
-                    boot->message_delete_reaction(msg, targ.id, emoj.format());
+                if (std::find_if(msg.reactions.begin(), msg.reactions.end(), [&](const dpp::reaction& e){ return e.emoji_id == emoj.id && e.emoji_name == emoj.name && e.count < 2; }) != msg.reactions.end()){ // assuming 1 is bot, so 2 must be user + bot (sadly possibly exploitable)
+                    boot->message_delete_reaction_emoji(msg, emoj.format());
                 }
             }
         }
