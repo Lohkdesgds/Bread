@@ -3,7 +3,7 @@
 
 void g_on_button_click(const dpp::button_click_t& ev)
 {
-    if (ev.command.usr.id != ev.command.msg.interaction.usr.id) {
+    if (ev.command.usr.id != ev.command.msg.interaction.usr.id && ev.command.msg.interaction.usr.id != 0) {
         ev.reply(make_ephemeral_message("If you want to use this command, please trigger it yourself. This is not yours.")); 
         return;
     }
