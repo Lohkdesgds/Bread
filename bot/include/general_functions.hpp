@@ -9,6 +9,11 @@
 
 #include <defaults.hpp>
 
+#define SUPERSAFE(FUNC)\
+try{ FUNC; } \
+catch(const std::exception& e) { Lunaris::cout << Lunaris::console::color::DARK_RED << "[MACRO] Exception: " << __FILE__ << " @ " << __LINE__ << ": " << e.what(); }\
+catch(...) { Lunaris::cout << Lunaris::console::color::DARK_RED << "[MACRO] Exception: " << __FILE__ << " @ " << __LINE__ << ": UNCAUGHT"; }
+
 constexpr char GROUPID_WRAP = '$';
 constexpr char ITEMNAME_WRAP = '@';
 constexpr char CUSTOMVAL_WRAP = '%';

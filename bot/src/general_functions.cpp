@@ -588,19 +588,24 @@ std::string select_between(const std::string& e, const char c)
 std::vector<std::string> extract_emojis_auto(const std::string& src)
 {
     std::vector<std::string> emojis;
-    std::stringstream ss(src);
-    std::string token;
-    while (std::getline(ss, token, ';')){                    
-        while(token.length() && (token.front() == ' ' || token.front() == '<' || token.front() == 'a' || token.front() == ':'))
-            token.erase(token.begin());
-        
-        while(token.length() && (token.back() == ' ' || token.back() == '>')) 
-            token.pop_back();
+    try {
+        std::stringstream ss(src);
+        std::string token;
+        while (std::getline(ss, token, ';')){                    
+            while(token.length() && (token.front() == ' ' || token.front() == '<' || token.front() == 'a' || token.front() == ':'))
+                token.erase(token.begin());
+            
+            while(token.length() && (token.back() == ' ' || token.back() == '>')) 
+                token.pop_back();
 
-        if (token.size()) {
-            emojis.push_back(token);
+            if (token.size()) {
+                emojis.push_back(token);
+            }
         }
     }
+    catch(const std::exception& e) { Lunaris::cout << Lunaris::console::color::DARK_RED << "Exception: " << __FILE__ << " @ " << __LINE__ << ": " << e.what(); }
+    catch(...) { Lunaris::cout << Lunaris::console::color::DARK_RED << "Exception: " << __FILE__ << " @ " << __LINE__ << ": UNCAUGHT"; }
+
     return emojis;
 }
 
@@ -614,16 +619,20 @@ std::vector<dpp::snowflake> slice_string_auto_snowflake(const std::string& str)
     if (str.empty()) return {};
     std::vector<dpp::snowflake> nd;
 
-    const char* noww = str.data();
-    char* endd = nullptr;
+    try {
+        const char* noww = str.data();
+        char* endd = nullptr;
 
-    while(1) {
-        unsigned long long _val = 0;
-        _val = std::strtoull(noww, &endd, 10);
-        if (endd == noww) break;
-        if (_val != 0) nd.push_back(_val);
-        noww = endd;
+        while(1) {
+            unsigned long long _val = 0;
+            _val = std::strtoull(noww, &endd, 10);
+            if (endd == noww) break;
+            if (_val != 0) nd.push_back(_val);
+            noww = endd;
+        }
     }
+    catch(const std::exception& e) { Lunaris::cout << Lunaris::console::color::DARK_RED << "Exception: " << __FILE__ << " @ " << __LINE__ << ": " << e.what(); }
+    catch(...) { Lunaris::cout << Lunaris::console::color::DARK_RED << "Exception: " << __FILE__ << " @ " << __LINE__ << ": UNCAUGHT"; }
 
     return nd;
 }

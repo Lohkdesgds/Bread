@@ -636,15 +636,15 @@ std::string g_smash_guild_info(const dpp::guild& g)
 void setup_bot(dpp::cluster& bot, safe_data<slash_global>& sg)
 {
     bot.on_log(g_on_log);
-    bot.on_ready([&sg](const dpp::ready_t& arg){ g_on_ready(arg, sg); });
-    bot.on_form_submit([&](const dpp::form_submit_t& arg){ g_on_modal(arg); });
-    bot.on_button_click([&](const dpp::button_click_t& arg) { g_on_button_click(arg); });
-    bot.on_select_click([&](const dpp::select_click_t& arg) { g_on_select(arg); });
-    bot.on_interaction_create([&](const dpp::interaction_create_t& arg) { g_on_interaction(arg); });
-    bot.on_message_reaction_add([&](const dpp::message_reaction_add_t& arg) { g_on_react(arg); });
-    bot.on_message_create([&](const dpp::message_create_t& arg) { g_on_message(arg); });
-    bot.on_guild_create([&](const dpp::guild_create_t& arg){ g_on_new_guild(bot, arg); });
-    bot.on_guild_delete([&](const dpp::guild_delete_t& arg){ g_on_left_guild(bot, arg); });
+    bot.on_ready([&sg](const dpp::ready_t& arg){ SUPERSAFE(g_on_ready(arg, sg)); });
+    bot.on_form_submit([&](const dpp::form_submit_t& arg){ SUPERSAFE(g_on_modal(arg)); });
+    bot.on_button_click([&](const dpp::button_click_t& arg) { SUPERSAFE(g_on_button_click(arg)); });
+    bot.on_select_click([&](const dpp::select_click_t& arg) { SUPERSAFE(g_on_select(arg)); });
+    bot.on_interaction_create([&](const dpp::interaction_create_t& arg) { SUPERSAFE(g_on_interaction(arg)); });
+    bot.on_message_reaction_add([&](const dpp::message_reaction_add_t& arg) { SUPERSAFE(g_on_react(arg)); });
+    bot.on_message_create([&](const dpp::message_create_t& arg) { SUPERSAFE(g_on_message(arg)); });
+    bot.on_guild_create([&](const dpp::guild_create_t& arg){ SUPERSAFE(g_on_new_guild(bot, arg)); });
+    bot.on_guild_delete([&](const dpp::guild_delete_t& arg){ SUPERSAFE(g_on_left_guild(bot, arg)); });
 }
 
 void error_autoprint(const dpp::confirmation_callback_t& err)
@@ -723,27 +723,30 @@ bool auto_handle_button_switch(const dpp::interaction_create_t& ev, const std::s
 int64_t interpret_color(const std::string& str)
 {
     if (str.empty()) return -1;
-
-    else if (str.find("0x") == 0) { // HEX
-        if (str.length() <= 2) return -1;
-        char* got_on = nullptr;
-        return std::strtoll(str.c_str() + 2, &got_on, 16);
+    try {
+        if (str.find("0x") == 0) { // HEX
+            if (str.length() <= 2) return -1;
+            char* got_on = nullptr;
+            return std::strtoll(str.c_str() + 2, &got_on, 16) & 0xFFFFFF;
+        }
+        else if (str[0] <= '9' && str[0] >= '0') { // DEC
+            char* got_on = nullptr;
+            return std::strtoll(str.c_str(), &got_on, 10) & 0xFFFFFF;
+        }
+        else { // literal
+            if (str == "red") return 0xFF0000;
+            if (str == "green") return 0x00FF00;
+            if (str == "blue") return 0x0000FF;
+            if (str == "yellow") return 0xFFFF00;
+            if (str == "cyan") return 0x00FFFF;
+            if (str == "magenta") return 0xFF00FF;
+            if (str == "white") return 0xFFFFFF;
+            if (str == "black") return 0x000000;
+            if (str == "default") return -1;
+        }
     }
-    else if (str[0] <= '9' && str[0] >= '0') { // DEC
-        char* got_on = nullptr;
-        return std::strtoll(str.c_str(), &got_on, 10);
-    }
-    else { // literal
-        if (str == "red") return 0xFF0000;
-        if (str == "green") return 0x00FF00;
-        if (str == "blue") return 0x0000FF;
-        if (str == "yellow") return 0xFFFF00;
-        if (str == "cyan") return 0x00FFFF;
-        if (str == "magenta") return 0xFF00FF;
-        if (str == "white") return 0xFFFFFF;
-        if (str == "black") return 0x000000;
-        if (str == "default") return -1;
-    }
+    catch(const std::exception& e) { Lunaris::cout << Lunaris::console::color::DARK_RED << "Exception: " << __FILE__ << " @ " << __LINE__ << ": " << e.what(); }
+    catch(...) { Lunaris::cout << Lunaris::console::color::DARK_RED << "Exception: " << __FILE__ << " @ " << __LINE__ << ": UNCAUGHT"; }
     return -1;
 }
 
