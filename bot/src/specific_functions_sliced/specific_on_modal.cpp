@@ -464,9 +464,7 @@ void g_on_modal(const dpp::form_submit_t& ev)
 
             replying.add_embed(poll_enq);
 
-            ev.reply(replying);
-
-            ev.get_original_response([dmbcore = ev.from->creator, emojis_selected](const dpp::confirmation_callback_t& data) {
+            const std::function<void(const dpp::confirmation_callback_t&)> dumb_var_copy_test = [dmbcore = ev.from->creator, emojis_selected](const dpp::confirmation_callback_t& data) {
                 if (data.is_error()) {
                     cout << console::color::DARK_RED << "Someone called /poll and had issues: " << data.get_error().message;
                     return;
@@ -475,7 +473,17 @@ void g_on_modal(const dpp::form_submit_t& ev)
                 for(auto& i : emojis_selected) {
                     dmbcore->message_add_reaction(msg, i);
                 }
+            };
+
+            ev.reply(replying, [ev, dumb_var_copy_test](const dpp::confirmation_callback_t& conf){
+                if (conf.is_error()) {
+                    cout << console::color::DARK_RED << "Someone called /poll and had issues: " << conf.get_error().message;
+                    return;
+                }
+
+                ev.get_original_response(dumb_var_copy_test);
             });
+
             return;
         }
     }
