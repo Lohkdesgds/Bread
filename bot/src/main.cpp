@@ -70,6 +70,8 @@ int main()
     bot->stop_timer(tusers_timer);
     bot->stop_timer(tguild_timer);
 
+    config.safe<void>([](general_config& g){ g.save_as(config_path); });
+
     cout << console::color::AQUA << "[MAIN] If from now on this freezes, it's safe to just close.";
 
     bot.reset();

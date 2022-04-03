@@ -364,6 +364,7 @@ void input_handler_cmd(dpp::cluster& bot, bool& _keep, safe_data<general_config>
         cout << console::color::GRAY << "Help:";
         cout << console::color::GRAY << "> help            : Shows this help";
         cout << console::color::GRAY << "> exit            : Close bot properly (or as close as possible to that)";
+        cout << console::color::GRAY << "> scf             : Save config manually (status etc)";
         cout << console::color::GRAY << "> sss [string]    : [Set Status String] Set status text (presence)";
         cout << console::color::GRAY << "> ssm [uint]      : [Set Status Mode] Set status mode (0-3; off, on, dnd, idle)" ;
         cout << console::color::GRAY << "> ssc [uint]      : [Set Status Code] Set status code (0-5; game, streaming, listening, watching, custom, competing)";
@@ -374,6 +375,19 @@ void input_handler_cmd(dpp::cluster& bot, bool& _keep, safe_data<general_config>
         cout << console::color::GRAY << "> rsc             : [Reset Slash Commands] Clean up local guild slash commands and bulk global ones. (WARN: DO ONLY FOR DEBUG! MAY BREAK GUILD CONFIGURED STUFF!)";
         cout << console::color::GRAY << "> mem             : Get memory information (things in memory)";
         cout << console::color::GRAY << "> dgs             : [Delete Global Slash] Remove global commands from the bot (DANGEROUS!)";
+    }
+        break;
+    case commands::SAVECONF:
+    {
+        cout << console::color::YELLOW << "[MAIN] Saving config...";
+        config.safe<void>([](general_config& g){ 
+            if (g.save_as(config_path)) {
+                cout << console::color::GREEN << "[MAIN] Saved!";
+            }
+            else {
+                cout << console::color::RED << "[MAIN] Failed saving config.";
+            }
+        });
     }
         break;
     case commands::EXIT:
@@ -595,6 +609,7 @@ commands g_interp_cmd(const std::string& s, std::string& o)
 {
     if (s.find("help") == 0) { if (s.size() > 5) { o = s.substr(5); } return commands::HELP; }
     if (s.find("exit") == 0) { if (s.size() > 5) { o = s.substr(5); } return commands::EXIT; }
+    if (s.find("scf") == 0)  { if (s.size() > 4) { o = s.substr(4); } return commands::SAVECONF; }
     if (s.find("sss") == 0)  { if (s.size() > 4) { o = s.substr(4); } return commands::SETSTATUSSTR; }
     if (s.find("ssm") == 0)  { if (s.size() > 4) { o = s.substr(4); } return commands::SETSTATUSMODE; }
     if (s.find("ssc") == 0)  { if (s.size() > 4) { o = s.substr(4); } return commands::SETSTATUSCODE; }
