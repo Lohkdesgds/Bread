@@ -1,0 +1,71 @@
+{
+  "slashes": [
+    {
+      "default_permission": true,
+      "description": "Check latency",
+      "name": "ping",
+      "type": 1
+    },
+    {
+      "default_permission": true,
+      "description": "Paste clipboard reference here",
+      "name": "paste",
+      "options": [],
+      "type": 1
+    },
+    {
+      "default_permission": true,
+      "description": "See and manage your configuration",
+      "name": "self",
+      "options": [],
+      "type": 1
+    },
+    {
+      "default_permission": true,
+      "description": "Show available roles in this guild, if any",
+      "name": "roles",
+      "options": [],
+      "type": 1
+    },
+    {
+      "default_permission": true,
+      "name": "Copy to clipboard",
+      "options": [],
+      "type": 3
+    },
+    {
+      "default_permission": true,
+      "name": "Show info of this user",
+      "options": [],
+      "type": 2
+    },
+    {
+      "default_permission": true,
+      "description": "Show your info",
+      "name": "info",
+      "options": [],
+      "type": 1
+    },
+    {
+      "default_permission": true,
+      "description": "Generate a poll",
+      "options": [],
+      "name": "poll",
+      "type": 1
+    },
+    {
+      "default_permission": true,
+      "description": "Check bot status",
+      "options": [],
+      "name": "botstatus",
+      "type": 1
+    },
+    {
+      "default_permission": true,
+      "description": "Configure your server",
+      "name": "configuration",
+      "options": [],
+      "type": 1
+    }
+  ]
+}
