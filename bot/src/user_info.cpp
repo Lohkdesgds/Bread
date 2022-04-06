@@ -102,11 +102,16 @@ user_info::user_info(const dpp::snowflake& id)
     : __user_id(id)
 {
     auto js = get_from_file(needed_paths[user_props::user_path_off], std::to_string(__user_id), ".json");
-
     from_json(js);
+    Lunaris::cout << Lunaris::console::color::DARK_BLUE << "[MEMU] User #" << id << " was loaded.";
 }
 
 user_info::~user_info()
 {
-    save_file(to_json(), needed_paths[user_props::user_path_off], std::to_string(__user_id), ".json");
+    if (save_file(to_json(), needed_paths[user_props::user_path_off], std::to_string(__user_id), ".json")) {
+        Lunaris::cout << Lunaris::console::color::DARK_GRAY << "[MEMU] User #" << __user_id << " was unloaded.";
+    }
+    else {
+        Lunaris::cout << Lunaris::console::color::RED << "[MEMU] User #" << __user_id << " failed to unload.";
+    }
 }

@@ -10,6 +10,8 @@ cmake ..
 
 echo "Making build..."
 
-make -j4
+make -j$(nproc)
+
+cp -T ./discord-bot ./release-bot
 
 echo "The end!"

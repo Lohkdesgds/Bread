@@ -97,7 +97,7 @@ void g_on_modal(const dpp::form_submit_t& ev)
 
             if (selected_group >= guil->roles_available.size()){ ev.reply(make_ephemeral_message("Something went wrong! Invalid operation on expected valid one.")); return; }
 
-            const dpp::snowflake _num = dpp::from_string<dpp::snowflake>(role);
+            const dpp::snowflake _num = role.empty() ? 0 : dpp::from_string<dpp::snowflake>(role);
             if (_num == 0 || name.empty()) { ev.reply(make_ephemeral_message("Something went wrong! Invalid role ID or name is empty somehow!")); return; }
 
             auto& rg = guil.unsafe().roles_available[selected_group];
@@ -134,7 +134,7 @@ void g_on_modal(const dpp::form_submit_t& ev)
 
             if (selected_group >= guil->roles_available.size()){ ev.reply(make_ephemeral_message("Something went wrong! Invalid operation on expected valid one.")); return; }
                         
-            const dpp::snowflake _num = dpp::from_string<dpp::snowflake>(role);
+            const dpp::snowflake _num = role.empty() ? 0 : dpp::from_string<dpp::snowflake>(role);
             if (_num == 0 && role != "*") { ev.reply(make_ephemeral_message("Something went wrong! Invalid role ID!")); return; }
 
             auto& rg = guil.unsafe().roles_available[selected_group];
@@ -191,7 +191,7 @@ void g_on_modal(const dpp::form_submit_t& ev)
     }
     if (trigg.group_name == "roles_aroles") { // automatic
         const std::string role = wrk.find_modal_get("role"); // must exist
-        const dpp::snowflake _num = dpp::from_string<dpp::snowflake>(role);
+        const dpp::snowflake _num = role.empty() ? 0 : dpp::from_string<dpp::snowflake>(role);
 
         if (trigg.item_name == "add"){
             if (_num == 0) { ev.reply(make_ephemeral_message("Something went wrong! Invalid role ID!")); return; }
@@ -254,7 +254,7 @@ void g_on_modal(const dpp::form_submit_t& ev)
     }
     if (trigg.group_name == "roles_lroles") { // leveling
         const std::string role = wrk.find_modal_get("role"); // must exist
-        const dpp::snowflake _num = dpp::from_string<dpp::snowflake>(role);
+        const dpp::snowflake _num = role.empty() ? 0 : dpp::from_string<dpp::snowflake>(role);
 
         if (trigg.item_name == "add"){
             const std::string level = wrk.find_modal_get("level"); // can be null
@@ -326,7 +326,8 @@ void g_on_modal(const dpp::form_submit_t& ev)
     if (trigg.group_name == "pointsconf")
     {
         if (trigg.item_name == "select") { // select user
-            const dpp::snowflake _num = dpp::from_string<dpp::snowflake>(wrk.get_modal_items()[0].second);
+            const std::string __in = wrk.find_modal_get("select");
+            const dpp::snowflake _num = __in.empty() ? 0 : dpp::from_string<dpp::snowflake>(__in);
 
             if (_num == 0) {
                 wrk.find_button_do("TMPpointsconf", "select", [&](item<button_props>& i){
@@ -387,7 +388,7 @@ void g_on_modal(const dpp::form_submit_t& ev)
                 });
             }
             else {
-                const unsigned long long _fin = dpp::from_string<unsigned long long>(wrk.get_modal_items()[0].second);
+                const unsigned long long _fin = dpp::from_string<unsigned long long>(wrk.find_modal_get("points"));
                 
                 force_const<user_info> you = tf_user_info[target];
                 if (!you) { ev.reply(make_ephemeral_message("Something went wrong! Can't get user?! Please report error! I'm so sorry.")); return; }                
@@ -415,13 +416,29 @@ void g_on_modal(const dpp::form_submit_t& ev)
         std::unique_lock<std::shared_mutex> lu(you.unsafe().muu);
 
         if (trigg.item_name == "colorpicker") {
-            const std::string _raw = wrk.get_modal_items()[0].second; // must be 1
+            const std::string _raw = wrk.find_modal_get("color"); // must be 1
             const int64_t sel = interpret_color(_raw);
             you.unsafe().pref_color = sel;
 
             wrk.find_button_do("selfconf", "setcolor", [&](item<button_props>& i){
                 i.extra.style = dpp::cos_success;
                 i.label = "Updated: " + print_hex_color_auto(you->pref_color);
+            });
+
+            wrk.reply(!guil->commands_public);
+            return;
+        }
+    }
+    if (trigg.group_name == "commconf") {
+
+        if (trigg.item_name == "levelch") {
+            const std::string _raw = wrk.find_modal_get("chid"); // must be 1
+            const dpp::snowflake sel = dpp::from_string<dpp::snowflake>(_raw);
+            guil.unsafe().fallback_levelup_message_channel = sel;
+
+            wrk.find_button_do("TMPcommconf", "levelch", [&](item<button_props>& i){
+                i.extra.style = dpp::cos_success;
+                i.set_label("Value set: " + std::string(sel == 0 ? "NONE" : std::to_string(sel)));
             });
 
             wrk.reply(!guil->commands_public);

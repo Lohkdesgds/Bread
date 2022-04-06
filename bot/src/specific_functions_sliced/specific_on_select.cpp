@@ -25,7 +25,7 @@ void g_on_select(const dpp::select_click_t& ev)
         //std::shared_lock<Lunaris::shared_recursive_mutex> guilmtx(guil->mu);
 
         const std::string groupnam = (std::holds_alternative<std::string>(trigg.value) ? std::get<std::string>(trigg.value) : "");
-        const dpp::snowflake roleid = dpp::from_string<dpp::snowflake>(trigg.item_name);
+        const dpp::snowflake roleid = trigg.item_name.empty() ? 0 : dpp::from_string<dpp::snowflake>(trigg.item_name);
 
         if (groupnam.empty() || roleid == 0) {
             ev.reply(make_ephemeral_message("Something went wrong! Item was empty or invalid. Track: on_button_click > TMPgetrolegroup > ?"));
@@ -192,6 +192,8 @@ void g_on_select(const dpp::select_click_t& ev)
             wrk.push_or_replace(button_row()
                 .push_item(item<button_props>("Allow external paste", "ext", { guil->allow_external_paste ? dpp::cos_success : dpp::cos_danger, false }).set_custom(guil->allow_external_paste))
                 .push_item(item<button_props>("Make most commands public", "pub", { guil->commands_public ? dpp::cos_success : dpp::cos_danger, false }).set_custom(guil->commands_public))
+                .push_item(item<button_props>("Show level up messages", "levelmsg", { !guil->block_levelup_user_event ? dpp::cos_success : dpp::cos_danger, false }).set_custom(guil->block_levelup_user_event))
+                .push_item(item<button_props>("Level up chat: " + std::string(guil->fallback_levelup_message_channel != 0 ? std::to_string(guil->fallback_levelup_message_channel) : "NONE"), "levelch", { dpp::cos_secondary, false }))
                 .set_group_name("TMPcommconf"), 0
             );
 

@@ -133,11 +133,16 @@ guild_info::guild_info(const dpp::snowflake& id)
     : __guild_id(id)
 {
     auto js = get_from_file(needed_paths[guild_props::guild_path_off], std::to_string(__guild_id), ".json");
-
     from_json(js);
+    Lunaris::cout << Lunaris::console::color::DARK_BLUE << "[MEMG] Guild #" << id << " was loaded.";
 }
 
 guild_info::~guild_info()
 {
-    save_file(to_json(), needed_paths[guild_props::guild_path_off], std::to_string(__guild_id), ".json");
+    if (save_file(to_json(), needed_paths[guild_props::guild_path_off], std::to_string(__guild_id), ".json")) {
+        Lunaris::cout << Lunaris::console::color::DARK_GRAY << "[MEMG] Guild #" << __guild_id << " was unloaded.";
+    }
+    else {
+        Lunaris::cout << Lunaris::console::color::RED << "[MEMG] Guild #" << __guild_id << " failed to unload.";
+    }
 }

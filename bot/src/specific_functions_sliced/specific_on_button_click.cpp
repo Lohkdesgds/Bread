@@ -34,7 +34,7 @@ void g_on_button_click(const dpp::button_click_t& ev)
         }
         if (trigg.item_name == "setcolor") {
             auto modal = modal_generate("selfconf", "colorpicker", "Select color");
-            modal_add_component(modal, "Color name, hex or decimal", "color", "red, green, cyan, white, 0xFFFFFF...", dpp::text_style_type::text_short);
+            modal_add_component(modal, "Color name, hex or decimal", "color", "red, green, cyan, white, 0xFFFFFF...", dpp::text_style_type::text_short, true);
             ev.dialog(modal, error_autoprint);
             return;
         }
@@ -66,6 +66,19 @@ void g_on_button_click(const dpp::button_click_t& ev)
             wrk.reply(!guil->commands_public);
             return;
         }
+        if (trigg.item_name == "levelmsg") {
+            trigg.target_if_button->extra.style =
+                (trigg.target_if_button->extra.style == dpp::cos_success) ? dpp::cos_danger : dpp::cos_success;
+            guil.unsafe().block_levelup_user_event = trigg.target_if_button->extra.style != dpp::cos_success;
+            wrk.reply(!guil->commands_public);
+            return;
+        }
+        if (trigg.item_name == "levelch") {
+            auto modal = modal_generate("commconf", "levelch", "Select channel");
+            modal_add_component(modal, "Channel ID or 'NONE'", "chid", "012345... or NONE", dpp::text_style_type::text_short, true);
+            ev.dialog(modal, error_autoprint);
+            return;
+        }
 
         ev.reply(make_ephemeral_message("Something went wrong! Track: on_button_click > TMPcommconf > ?"));
         return;
@@ -73,13 +86,13 @@ void g_on_button_click(const dpp::button_click_t& ev)
     if (trigg.group_name == "TMPpointsconf") {
         if (trigg.item_name == "select") {
             auto modal = modal_generate("pointsconf", "select", "Select user");
-            modal_add_component(modal, "User ID (number)", "userid", "012345...", dpp::text_style_type::text_short);
+            modal_add_component(modal, "User ID (number)", "userid", "012345...", dpp::text_style_type::text_short, true);
             ev.dialog(modal, error_autoprint);
             return;
         }
         if (trigg.item_name == "setpts") {
             auto modal = modal_generate("pointsconf", "setpts", "Set user points in guild");
-            modal_add_component(modal, "Points (number, positive)", "points", "121314...", dpp::text_style_type::text_short);
+            modal_add_component(modal, "Points (number, positive)", "points", "121314...", dpp::text_style_type::text_short, true);
             ev.dialog(modal, error_autoprint);
             return;
         }
@@ -91,13 +104,13 @@ void g_on_button_click(const dpp::button_click_t& ev)
         if (trigg.item_name == "addg") {
             auto modal = modal_generate("roles_roles", "addg", "Add / update role group");
             modal_add_component(modal, "Group name", "name", "Fancy group", dpp::text_style_type::text_short, true, 0, 20);
-            modal_add_component(modal, "One role at a time or any combination?", "limit", "\"ONE\" for one, \"ANY\" for any", dpp::text_style_type::text_short);
+            modal_add_component(modal, "One role at a time or any combination?", "limit", "\"ONE\" for one, \"ANY\" for any", dpp::text_style_type::text_short, true);
             ev.dialog(modal, error_autoprint);
             return;
         }
         if (trigg.item_name == "delg") {
             auto modal = modal_generate("roles_roles", "delg", "Remove role group");
-            modal_add_component(modal, "Role group name", "name", "* deletes everything, else perfect match", dpp::text_style_type::text_short);
+            modal_add_component(modal, "Role group name", "name", "* deletes everything, else perfect match", dpp::text_style_type::text_short, true);
             ev.dialog(modal, error_autoprint);
             return;
         }

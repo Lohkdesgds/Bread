@@ -52,10 +52,10 @@ void g_on_log(const dpp::log_t& log)
     case dpp::loglevel::ll_info:
         cout << console::color::BLUE << "[DPP][INFO] " << log.message;
         break;
-    case dpp::loglevel::ll_debug:
-        cout << console::color::DARK_PURPLE << "[DPP][DEBUG] " << log.message;
-        break;
-    case dpp::loglevel::ll_trace:
+//    case dpp::loglevel::ll_debug:
+//        cout << console::color::DARK_PURPLE << "[DPP][DEBUG] " << log.message;
+//        break;
+    default:
         // trace is not needed tbh
         break;
     }
@@ -951,7 +951,27 @@ bool run_ping(const dpp::interaction_create_t& ev)
 
 bool run_config_server(const dpp::interaction_create_t& ev, const dpp::command_interaction& cmd)
 {
-    if (!is_member_admin(ev.command.member)) { ev.reply(make_ephemeral_message("I think you're not an admin or cache is not up to date :(")); return true; }
+    if (!is_member_admin(ev.command.member)) { 
+        if (!dpp::get_user_cache()->find(ev.command.usr.id)) {
+            ev.reply(make_ephemeral_message("Cache was not up to date, so your user was queued. Please try again in a minute!"));
+            ev.from->creator->user_get(ev.command.usr.id, [](const dpp::confirmation_callback_t& conf){
+                if (conf.is_error()) {
+                    return;
+                }
+
+                const dpp::user_identified& ui = std::get<dpp::user_identified>(conf.value);
+
+                // manually add to cache...?
+                if (ui.id != 0 && !dpp::get_user_cache()->find(ui.id)) {                        
+                    dpp::get_user_cache()->store(new dpp::user(ui));
+                }
+            });
+        }
+        else {
+            ev.reply(make_ephemeral_message("I think you're not an admin or cache is not up to date :(\nPlease check if you have an admin role (with Administrator on)."));
+        }
+        return true;
+    }
 
     force_const<guild_info> guil = tf_guild_info[ev.command.guild_id];
     if (!guil) { ev.reply(make_ephemeral_message("Something went wrong! Guild do not exist?! Please report error! I'm so sorry.")); return true; }
@@ -961,12 +981,12 @@ bool run_config_server(const dpp::interaction_create_t& ev, const dpp::command_i
     transl_button_event wrk;
 
     wrk.push_or_replace(select_row()
-        .push_item(item<std::string>("Export config",  "export",    "Export guild configuration"                ).set_emoji("📦"))
-        .push_item(item<std::string>("Commands",       "comm",      "Configurations of commands in this guild"  ).set_emoji("⚙️"))
-        .push_item(item<std::string>("User points",    "points",    "Select and manage a user's points"         ).set_emoji("💵"))
-        .push_item(item<std::string>("Role command",   "roles",     "Manage user /roles command system"         ).set_emoji("🙂"))
-        .push_item(item<std::string>("Autorole",       "aroles",    "Manage roles given on user's first message").set_emoji("📨"))
-        .push_item(item<std::string>("Leveling",       "lroles",    "Manage leveling settings"                  ).set_emoji("📊"))
+        .push_item(item<std::string>("Export config",    "export",    "Export guild configuration"                           ).set_emoji("📦"))
+        .push_item(item<std::string>("Commands & events","comm",      "Configurations of commands and events in this guild"  ).set_emoji("⚙️"))
+        .push_item(item<std::string>("User points",      "points",    "Select and manage a user's points"                    ).set_emoji("💵"))
+        .push_item(item<std::string>("Role command",     "roles",     "Manage user /roles command system"                    ).set_emoji("🙂"))
+        .push_item(item<std::string>("Autorole",         "aroles",    "Manage roles given on user's first message"           ).set_emoji("📨"))
+        .push_item(item<std::string>("Leveling",         "lroles",    "Manage leveling settings"                             ).set_emoji("📊"))
         .set_group_name("guildconf")
     );
 

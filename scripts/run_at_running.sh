@@ -2,4 +2,4 @@ echo "Running..."
 
 cd ../running_data/
 
-../build/discord-bot
+../build/release-bot
