@@ -326,7 +326,7 @@ void g_on_modal(const dpp::form_submit_t& ev)
     if (trigg.group_name == "pointsconf")
     {
         if (trigg.item_name == "select") { // select user
-            const std::string __in = wrk.find_modal_get("select");
+            const std::string __in = wrk.find_modal_get("userid");
             const dpp::snowflake _num = __in.empty() ? 0 : dpp::from_string<dpp::snowflake>(__in);
 
             if (_num == 0) {
