@@ -18,7 +18,7 @@ int main()
         lock_indefinitely();
     }
 
-    if (!config.safe<bool>([](general_config& g){ return g.load_from(config_path) || g.token.empty(); })) {
+    if (!config.safe<bool>([](general_config& g){ return g.load_from(config_path) || !g.token.empty(); })) {
         cout << console::color::YELLOW << "[WARN] New configuration? Can't find \"" << config_path << "\" or token is empty. Entering setup process...";
 
         cout << console::color::GREEN << "[MAIN] Paste your bot token: ";
