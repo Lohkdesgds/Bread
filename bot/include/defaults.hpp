@@ -12,7 +12,7 @@ const auto default_intents = dpp::i_default_intents | dpp::i_message_content;
 const dpp::snowflake guild_backup_id    = 847342829285933057; // Lunaris DEV
 const dpp::snowflake channel_logging_jl = 891424429857468517; // log join and leave channel
 
-const auto factory_default_time = std::chrono::seconds(120); // 2 min in memory
+const auto factory_default_time = std::chrono::seconds(14400); // 4 hours in memory
 
 namespace user_props {
     constexpr size_t user_path_off = 2; // needed_paths[2]
